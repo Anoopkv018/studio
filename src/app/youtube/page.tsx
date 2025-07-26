@@ -1,27 +1,28 @@
 
 'use client';
 
-import { useState, type FormEvent, useRef, useEffect } from 'react';
-import Image from 'next/image';
-import Link from 'next/link';
+import { useState, useRef, useEffect, type FormEvent } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { PageHeader } from '@/components/common/PageHeader';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
-import { PlayCircle, Mic, MicOff, Volume2, Search } from 'lucide-react';
-import { searchYoutubeVideos } from '@/ai/flows/youtube-video-search';
+import { Mic, Search } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
-
-type Video = {
-    id: string;
+type YouTubeVideo = {
+  id: {
+    videoId: string;
+  };
+  snippet: {
     title: string;
-    description: string;
-    thumbnail: string;
-    url: string;
-    dataAiHint: string;
+    thumbnails: {
+      high: {
+        url: string;
+      };
+    };
+  };
 };
 
 declare global {
@@ -31,35 +32,29 @@ declare global {
   }
 }
 
-export default function YoutubePage() {
-  const [query, setQuery] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [videos, setVideos] = useState<Video[]>([]);
-  const [audioUri, setAudioUri] = useState<string | null>(null);
-  const [isRecording, setIsRecording] = useState(false);
-  const { toast } = useToast();
-  const audioRef = useRef<HTMLAudioElement>(null);
-  const recognitionRef = useRef<any>(null);
+const YOUTUBE_API_KEY = process.env.NEXT_PUBLIC_YOUTUBE_API_KEY;
 
-  useEffect(() => {
-    handleSearch(new Event('submit') as any, true); // Initial search
-  }, []);
+export default function YoutubePage() {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [videos, setVideos] = useState<YouTubeVideo[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const recognitionRef = useRef<any>(null);
+  const { toast } = useToast();
 
   useEffect(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (SpeechRecognition) {
       recognitionRef.current = new SpeechRecognition();
       recognitionRef.current.continuous = false;
-      recognitionRef.current.lang = 'kn-IN'; // Kannada
+      recognitionRef.current.lang = 'kn-IN';
       recognitionRef.current.interimResults = false;
       recognitionRef.current.maxAlternatives = 1;
 
       recognitionRef.current.onresult = (event: any) => {
-        const recognizedText = event.results[0][0].transcript;
-        setQuery(recognizedText);
-        stopRecording();
-        // Automatically submit search after voice input
-        handleSearch(new Event('submit') as any, false, recognizedText);
+        const spokenText = event.results[0][0].transcript;
+        setSearchTerm(spokenText);
+        handleSearch(null, spokenText); 
       };
 
       recognitionRef.current.onerror = (event: any) => {
@@ -68,74 +63,45 @@ export default function YoutubePage() {
           description: `Error: ${event.error}`,
           variant: 'destructive',
         });
-        stopRecording();
-      };
-      
-      recognitionRef.current.onend = () => {
-        if(isRecording) stopRecording();
-      }
-
-    } else if (!window.SpeechRecognition && !window.webkitSpeechRecognition) {
-       toast({
-        title: 'ಧ್ವನಿ ಗುರುತಿಸುವಿಕೆ ಬೆಂಬಲಿಸುವುದಿಲ್ಲ',
-        description: 'ನಿಮ್ಮ ಬ್ರೌಸರ್ ಧ್ವನಿ ಗುರುತಿಸುವಿಕೆಯನ್ನು ಬೆಂಬಲಿಸುವುದಿಲ್ಲ.',
-        variant: 'destructive',
-      });
-    }
-
-    return () => {
-        if(recognitionRef.current) {
-            recognitionRef.current.stop();
-        }
-    }
-  }, [isRecording, toast]); // Removed handleSearch from dependencies
-  
-  const startRecording = () => {
-    if (recognitionRef.current) {
-        setQuery('');
-        setIsRecording(true);
-        recognitionRef.current.start();
-    }
-  }
-
-  const stopRecording = () => {
-    if (recognitionRef.current) {
-        recognitionRef.current.stop();
         setIsRecording(false);
+      };
+
+      recognitionRef.current.onend = () => {
+        setIsRecording(false);
+      };
     }
-  }
-
-  const toggleRecording = () => {
-      if(isRecording) {
-          stopRecording();
-      } else {
-          startRecording();
-      }
-  }
-
-  const handleSearch = async (event: FormEvent, isInitialSearch = false, voiceQuery?: string) => {
-    event.preventDefault();
-    
-    const searchQuery = voiceQuery !== undefined ? voiceQuery : query;
-
-    if (!isInitialSearch && !searchQuery.trim()) {
-      toast({ title: 'ಹುಡುಕಾಟ ಪದ ಖಾಲಿಯಾಗಿದೆ', variant: 'destructive' });
+  }, [toast]);
+  
+  const handleSearch = async (e: FormEvent | null, term: string = searchTerm) => {
+    e?.preventDefault();
+    if (!term.trim()) {
+      toast({ title: 'ದಯವಿಟ್ಟು ಹುಡುಕಾಟ ಪದವನ್ನು ನಮೂದಿಸಿ', variant: 'destructive' });
       return;
     }
 
     setIsLoading(true);
     setVideos([]);
-    setAudioUri(null);
 
     try {
-      const response = await searchYoutubeVideos({ query: searchQuery });
-      setVideos(response.videos);
-      setAudioUri(response.audioUri);
-    } catch (e) {
-      console.error(e);
+      const response = await fetch(
+        `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=6&q=${encodeURIComponent(
+          term
+        )}&type=video&relevanceLanguage=kn&key=${YOUTUBE_API_KEY}`
+      );
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error.message || 'Something went wrong');
+      }
+
+      const data = await response.json();
+      setVideos(data.items || []);
+
+    } catch (error: any) {
+      console.error(error);
       toast({
-        title: 'ದೋಷ',
-        description: 'ವೀಡಿಯೊಗಳನ್ನು ಹುಡುಕಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ. ದಯವಿಟ್ಟು ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.',
+        title: 'ವೀಡಿಯೊಗಳನ್ನು ಪಡೆಯಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ',
+        description: error.message,
         variant: 'destructive',
       });
     } finally {
@@ -143,9 +109,21 @@ export default function YoutubePage() {
     }
   };
 
-  const playAudio = () => {
-    if (audioRef.current) {
-      audioRef.current.play();
+  const toggleRecording = () => {
+    if (isRecording) {
+      recognitionRef.current?.stop();
+    } else {
+      if (!recognitionRef.current) {
+        toast({
+            title: 'ಧ್ವನಿ ಗುರುತಿಸುವಿಕೆ ಬೆಂಬಲಿಸುವುದಿಲ್ಲ',
+            description: 'ನಿಮ್ಮ ಬ್ರೌಸರ್ ಧ್ವನಿ ಗುರುತಿಸುವಿಕೆಯನ್ನು ಬೆಂಬಲಿಸುವುದಿಲ್ಲ.',
+            variant: 'destructive',
+        });
+        return;
+      }
+      setSearchTerm('');
+      setIsRecording(true);
+      recognitionRef.current?.start();
     }
   };
 
@@ -156,69 +134,58 @@ export default function YoutubePage() {
         subtitle="ಕೃಷಿ ತಜ್ಞರಿಂದ ಇತ್ತೀಚಿನ ತಂತ್ರಜ್ಞಾನ, ಸಲಹೆಗಳು ಮತ್ತು ಯಶಸ್ಸಿನ ಕಥೆಗಳನ್ನು ತಿಳಿಯಿರಿ."
       />
       <div className="max-w-xl mx-auto mb-8">
-        <form onSubmit={(e) => handleSearch(e)} className="flex gap-2 md:gap-4 items-center">
+        <form onSubmit={handleSearch} className="flex gap-2 md:gap-4 items-center">
           <Input
             type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="ಬೆಳೆ ಅಥವಾ ವಿಷಯದ ಬಗ್ಗೆ ಹುಡುಕಿ..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="ದಯವಿಟ್ಟು ಬೆಳೆ ಅಥವಾ ಕಾಯಿಲೆಯ ಹೆಸರು ನಮೂದಿಸಿ..."
             className="flex-grow"
             disabled={isLoading || isRecording}
           />
-           <Button type="button" size="icon" onClick={toggleRecording} variant={isRecording ? 'destructive' : 'outline'}>
-            {isRecording ? <MicOff /> : <Mic />}
-            <span className="sr-only">{isRecording ? 'ಧ್ವನಿಮುದ್ರಣ ನಿಲ್ಲಿಸಿ' : 'ಧ್ವನಿಮುದ್ರಣ ಪ್ರಾರಂಭಿಸಿ'}</span>
+          <Button
+            type="button"
+            size="icon"
+            onClick={toggleRecording}
+            variant={isRecording ? 'destructive' : 'outline'}
+            aria-label={isRecording ? 'Stop recording' : 'Start recording'}
+          >
+            <Mic className={cn('h-5 w-5', isRecording && 'text-red-500 animate-pulse')} />
           </Button>
           <Button type="submit" size="icon" disabled={isLoading || isRecording}>
-            <Search/>
+            <Search className="h-5 w-5" />
             <span className="sr-only">ಹುಡುಕಿ</span>
           </Button>
-           {audioUri && (
-            <>
-                <Button type="button" variant="outline" size="icon" onClick={playAudio}>
-                    <Volume2 className="h-5 w-5" />
-                </Button>
-                <audio ref={audioRef} src={audioUri} className="hidden" />
-            </>
-           )}
         </form>
          {isRecording && <p className="text-center text-primary font-semibold mt-4 animate-pulse">ಕೇಳಿಸಿಕೊಳ್ಳಲಾಗುತ್ತಿದೆ...</p>}
       </div>
-      
-      {isLoading ? <LoadingSpinner /> : videos.length > 0 ? (
+
+      {isLoading && <LoadingSpinner />}
+
+      {!isLoading && videos.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {videos.map(video => (
-            <Card key={video.id} className="overflow-hidden flex flex-col group">
-              <CardHeader className="p-0">
-                <div className="relative">
-                  <Image
-                    src={video.thumbnail}
-                    alt={video.title}
-                    width={600}
-                    height={400}
-                    className="aspect-video object-cover"
-                    data-ai-hint={video.dataAiHint}
-                  />
-                  <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                      <PlayCircle className="h-16 w-16 text-white/80"/>
-                  </div>
-                </div>
-              </CardHeader>
+          {videos.map((video) => (
+            <Card key={video.id.videoId} className="overflow-hidden flex flex-col">
+              <div className="aspect-video w-full">
+                <iframe
+                  className="w-full h-full"
+                  src={`https://www.youtube.com/embed/${video.id.videoId}`}
+                  title={video.snippet.title}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                ></iframe>
+              </div>
               <CardContent className="p-4 flex-grow">
-                <CardTitle>{video.title}</CardTitle>
-                <CardDescription className="mt-2">{video.description}</CardDescription>
+                <CardTitle className="text-base font-semibold leading-snug">{video.snippet.title}</CardTitle>
               </CardContent>
-              <CardFooter className="p-4">
-                 <Button asChild className="w-full">
-                    <Link href={video.url} target="_blank">ವಿಡಿಯೋ ವೀಕ್ಷಿಸಿ</Link>
-                </Button>
-              </CardFooter>
             </Card>
           ))}
         </div>
-      ) : (
+      )}
+
+      {!isLoading && videos.length === 0 && (
         <div className="text-center text-muted-foreground mt-16">
-            <p>ಯಾವುದೇ ವೀಡಿಯೊಗಳು ಕಂಡುಬಂದಿಲ್ಲ. ಬೇರೆ ಹುಡುಕಾಟ ಪದವನ್ನು ಪ್ರಯತ್ನಿಸಿ.</p>
+          <p>ಯಾವುದೇ ವಿಡಿಯೋಗಳು ಲಭ್ಯವಿಲ್ಲ</p>
         </div>
       )}
     </div>
