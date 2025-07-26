@@ -2,38 +2,17 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import Image from 'next/image';
 import { PageHeader } from '@/components/common/PageHeader';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
+import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { MapPin, Search, Navigation, Mic, MicOff } from 'lucide-react';
+import { MapPin, Search, Navigation, Mic, MicOff, Phone, Volume2, Building, Bot } from 'lucide-react';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
+import { findNearbyServices, type AgroService, type FindNearbyServicesInput } from '@/ai/flows/agro-services-locator';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
-
-type Service = {
-  name: string;
-  type: 'shop' | 'mandi' | 'fertilizer' | 'kendra';
-  distance: string;
-  address: string;
-};
-
-const serviceTypes = {
-  shop: 'ಕೃಷಿ ಅಂಗಡಿ',
-  mandi: 'ಮಂಡಿ',
-  fertilizer: 'ಗೊಬ್ಬರ ಕೇಂದ್ರ',
-  kendra: 'ಕೃಷಿ ಕೇಂದ್ರ',
-};
-
-const mockServices: Service[] = [
-  { name: 'ರೈತ ಮಿತ್ರ ಆಗ್ರೋ', type: 'shop', distance: '2.5 km', address: 'ಮುಖ್ಯ ರಸ್ತೆ, ಮೈಸೂರು' },
-  { name: 'APMC ಮಂಡಿ', type: 'mandi', distance: '5 km', address: 'APMC ಯಾರ್ಡ್, ಮಂಡ್ಯ' },
-  { name: 'ಕಾವೇರಿ ಗೊಬ್ಬರ ಕೇಂದ್ರ', type: 'fertilizer', distance: '3.1 km', address: 'ಗ್ರಾಮಾಂತರ ಪ್ರದೇಶ, ಶ್ರೀರಂಗಪಟ್ಟಣ' },
-  { name: 'ಕೃಷಿ ವಿಜ್ಞಾನ ಕೇಂದ್ರ', type: 'kendra', distance: '8 km', address: 'ವಿವಿ ಕ್ಯಾಂಪಸ್, ಬೆಂಗಳೂರು' },
-];
 
 declare global {
   interface Window {
@@ -44,14 +23,17 @@ declare global {
 
 export default function AgroServicesPage() {
   const [searchQuery, setSearchQuery] = useState('');
-  const [radius, setRadius] = useState('10');
-  const [location, setLocation] = useState<string | null>(null);
+  const [radius, setRadius] = useState('10'); // in km
+  const [location, setLocation] = useState<{ latitude: number; longitude: number} | null>(null);
+  const [services, setServices] = useState<AgroService[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingLocation, setIsLoadingLocation] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const recognitionRef = useRef<any>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const { toast } = useToast();
 
-    useEffect(() => {
+  useEffect(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (SpeechRecognition) {
       recognitionRef.current = new SpeechRecognition();
@@ -63,17 +45,14 @@ export default function AgroServicesPage() {
       recognitionRef.current.onresult = (event: any) => {
         const spokenText = event.results[0][0].transcript;
         setSearchQuery(spokenText);
+        handleSearch(spokenText);
       };
-
+      
       recognitionRef.current.onerror = (event: any) => {
-        toast({
-          title: 'ಧ್ವನಿ ಗುರುತಿಸುವಿಕೆಯಲ್ಲಿ ದೋಷ',
-          description: `Error: ${event.error}`,
-          variant: 'destructive',
-        });
+        toast({ title: 'ಧ್ವನಿ ಗುರುತಿಸುವಿಕೆಯಲ್ಲಿ ದೋಷ', description: `Error: ${event.error}`, variant: 'destructive'});
         setIsRecording(false);
       };
-
+      
       recognitionRef.current.onend = () => {
         setIsRecording(false);
       };
@@ -85,58 +64,85 @@ export default function AgroServicesPage() {
       recognitionRef.current?.stop();
     } else {
       if (!recognitionRef.current) {
-        toast({
-            title: 'ಧ್ವನಿ ಗುರುತಿಸುವಿಕೆ ಬೆಂಬಲಿಸುವುದಿಲ್ಲ',
-            description: 'ನಿಮ್ಮ ಬ್ರೌಸರ್ ಧ್ವನಿ ಗುರುತಿಸುವಿಕೆಯನ್ನು ಬೆಂಬಲಿಸುವುದಿಲ್ಲ.',
-            variant: 'destructive',
-        });
+        toast({ title: 'ಧ್ವನಿ ಗುರುತಿಸುವಿಕೆ ಬೆಂಬಲಿಸುವುದಿಲ್ಲ', description: 'ನಿಮ್ಮ ಬ್ರೌಸರ್ ಧ್ವನಿ ಗುರುತಿಸುವಿಕೆಯನ್ನು ಬೆಂಬಲಿಸುವುದಿಲ್ಲ.', variant: 'destructive' });
         return;
       }
       setSearchQuery('');
+      setServices([]);
       setIsRecording(true);
       recognitionRef.current?.start();
     }
   };
 
-
   const handleDetectLocation = () => {
-    setIsLoading(true);
+    setIsLoadingLocation(true);
     setSearchQuery('');
+    setServices([]);
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          // In a real app, you'd use these coords to query an API
-          setLocation(`ನಿಮ್ಮ ಪ್ರಸ್ತುತ ಸ್ಥಳ`);
-          setIsLoading(false);
-          toast({ title: 'ಸ್ಥಳ ಪತ್ತೆಯಾಗಿದೆ!' });
+          const { latitude, longitude } = position.coords;
+          setLocation({ latitude, longitude });
+          handleSearch(null, { latitude, longitude });
+          setIsLoadingLocation(false);
+          toast({ title: 'ನಿಮ್ಮ ಸ್ಥಳ ಪತ್ತೆಯಾಗಿದೆ!' });
         },
         (error) => {
-          toast({
-            title: 'ಸ್ಥಳ ಪತ್ತೆ ಮಾಡಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ',
-            description: 'ದಯವಿಟ್ಟು ಬ್ರೌಸರ್ ಅನುಮತಿಗಳನ್ನು ಪರಿಶೀಲಿಸಿ.',
-            variant: 'destructive',
-          });
-          setIsLoading(false);
+          toast({ title: 'ಸ್ಥಳ ಪತ್ತೆ ಮಾಡಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ', description: 'ದಯವಿಟ್ಟು ಬ್ರೌಸರ್ ಅನುಮತಿಗಳನ್ನು ಪರಿಶೀಲಿಸಿ.', variant: 'destructive'});
+          setIsLoadingLocation(false);
         }
       );
     } else {
       toast({ title: 'ಈ ಬ್ರೌಸರ್‌ನಲ್ಲಿ ಜಿಯೋಲೋಕೇಶನ್ ಬೆಂಬಲಿಸುವುದಿಲ್ಲ.', variant: 'destructive' });
+      setIsLoadingLocation(false);
+    }
+  };
+
+  const handleSearch = async (query: string | null = searchQuery, loc: {latitude: number, longitude: number} | null = location) => {
+    if (!query && !loc) {
+      toast({ title: 'ದಯವಿಟ್ಟು ಸ್ಥಳವನ್ನು ನಮೂದಿಸಿ ಅಥವಾ ಪತ್ತೆ ಮಾಡಿ', variant: 'destructive' });
+      return;
+    }
+    
+    setIsLoading(true);
+    setServices([]);
+    
+    const input: FindNearbyServicesInput = {
+      radius: parseInt(radius, 10) * 1000, // convert km to meters
+    };
+
+    if (loc) {
+      input.latitude = loc.latitude;
+      input.longitude = loc.longitude;
+    } else if (query) {
+      input.query = query;
+    }
+
+    try {
+      const response = await findNearbyServices(input);
+      setServices(response.services);
+    } catch (e) {
+      console.error(e);
+      toast({ title: 'ದೋಷ', description: 'ಸೇವೆಗಳನ್ನು ಹುಡುಕಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ. ದಯವಿಟ್ಟು ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.', variant: 'destructive'});
+    } finally {
       setIsLoading(false);
     }
   };
+
+  const playAudio = (audioUri: string) => {
+    if (audioRef.current) {
+        audioRef.current.pause();
+    }
+    const newAudio = new Audio(audioUri);
+    newAudio.play();
+    audioRef.current = newAudio;
+  };
   
-  const handleSearch = () => {
-      if(!searchQuery) {
-        toast({ title: 'ದಯವಿಟ್ಟು ಸ್ಥಳವನ್ನು ನಮೂದಿಸಿ', variant: 'destructive' });
-        return;
-      }
-      setIsLoading(true);
-      setLocation(null);
-      // Mock search
-      setTimeout(() => {
-          setLocation(`"${searchQuery}" ಗಾಗಿ ಫಲಿತಾಂಶಗಳು`);
-          setIsLoading(false);
-      }, 1000)
+  const getCategoryIcon = (category: string) => {
+      // A simple mapping, can be expanded
+      if (category.includes('ಗೊಬ್ಬರ') || category.includes('Fertilizer')) return <Bot className="h-6 w-6 text-accent" />;
+      if (category.includes('ಬೀಜ') || category.includes('Seed')) return <Building className="h-6 w-6 text-accent" />;
+      return <MapPin className="h-6 w-6 text-accent" />;
   }
 
   return (
@@ -146,8 +152,8 @@ export default function AgroServicesPage() {
         subtitle="ನಿಮ್ಮ ಸಮೀಪದಲ್ಲಿರುವ ಕೃಷಿ ಅಂಗಡಿಗಳು, ಮಂಡಿಗಳು ಮತ್ತು ಸೇವಾ ಕೇಂದ್ರಗಳನ್ನು ಹುಡುಕಿ."
       />
       <div className="max-w-4xl mx-auto">
-        <Card className="mb-8">
-          <CardContent className="p-6">
+        <Card className="mb-8 sticky top-[calc(4rem+1px)] z-10 bg-background/90 backdrop-blur-sm">
+          <CardContent className="p-4 md:p-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                <div className="md:col-span-2 flex items-center gap-2">
                  <Input
@@ -155,18 +161,19 @@ export default function AgroServicesPage() {
                     className="flex-grow"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    disabled={isLoading || isRecording}
+                    disabled={isLoading || isRecording || isLoadingLocation}
                  />
                  <Button
                     type="button"
                     size="icon"
                     onClick={toggleRecording}
                     variant={isRecording ? 'destructive' : 'outline'}
+                    disabled={isLoading || isLoadingLocation}
                  >
                     {isRecording ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
                  </Button>
                </div>
-               <Select value={radius} onValueChange={setRadius} disabled={isLoading}>
+               <Select value={radius} onValueChange={setRadius} disabled={isLoading || isLoadingLocation}>
                     <SelectTrigger className="w-full">
                         <SelectValue placeholder="ತ್ರಿಜ್ಯವನ್ನು ಆಯ್ಕೆಮಾಡಿ" />
                     </SelectTrigger>
@@ -174,63 +181,71 @@ export default function AgroServicesPage() {
                         <SelectItem value="5">5 ಕಿ.ಮೀ ಒಳಗೆ</SelectItem>
                         <SelectItem value="10">10 ಕಿ.ಮೀ ಒಳಗೆ</SelectItem>
                         <SelectItem value="25">25 ಕಿ.ಮೀ ಒಳಗೆ</SelectItem>
+                        <SelectItem value="50">50 ಕಿ.ಮೀ ಒಳಗೆ</SelectItem>
                     </SelectContent>
                 </Select>
             </div>
              <div className="flex flex-col md:flex-row gap-4 mt-4">
-                <Button className="w-full md:w-auto flex-grow" onClick={handleSearch} disabled={isLoading || isRecording}>
+                <Button className="w-full md:w-auto flex-grow" onClick={() => handleSearch()} disabled={isLoading || isRecording || isLoadingLocation}>
                     <Search className="mr-2 h-4 w-4" /> ಹುಡುಕಿ
                 </Button>
-                <Button variant="outline" className="w-full md:w-auto flex-grow" onClick={handleDetectLocation} disabled={isLoading}>
-                    <Navigation className="mr-2 h-4 w-4" /> ಸ್ಥಳ ಪತ್ತೆ ಮಾಡಿ
+                <Button variant="outline" className="w-full md:w-auto flex-grow" onClick={handleDetectLocation} disabled={isLoading || isRecording || isLoadingLocation}>
+                    <Navigation className="mr-2 h-4 w-4" /> {isLoadingLocation ? 'ಪತ್ತೆ ಮಾಡಲಾಗುತ್ತಿದೆ...' : 'ನನ್ನ ಸ್ಥಳ ಬಳಸಿ'}
                 </Button>
             </div>
-            {(isLoading || isRecording) && <LoadingSpinner className={cn({'hidden': !isLoading}, 'py-4')}/>}
-            {isRecording && <p className="text-center text-primary font-semibold mt-4 animate-pulse">ಕೇಳಿಸಿಕೊಳ್ಳಲಾಗುತ್ತಿದೆ...</p>}
-            {location && <p className="mt-4 text-center text-primary font-semibold">{location}</p>}
           </CardContent>
         </Card>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <Card>
-                <CardHeader>
-                    <CardTitle>ನಕ್ಷೆ</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <div className="aspect-video w-full bg-muted rounded-lg flex items-center justify-center">
-                        <Image
-                            src="https://placehold.co/600x400.png"
-                            width={600}
-                            height={400}
-                            alt="Map Placeholder"
-                            data-ai-hint="map karnataka"
-                            className="object-cover rounded-md"
-                        />
-                    </div>
-                </CardContent>
-            </Card>
+        {isRecording && <p className="text-center text-primary font-semibold mt-4 animate-pulse">ಕೇಳಿಸಿಕೊಳ್ಳಲಾಗುತ್ತಿದೆ...</p>}
 
-            <Card>
-                <CardHeader>
-                    <CardTitle>ಸೇವಾ ಕೇಂದ್ರಗಳು</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <div className="space-y-4">
-                        {mockServices.map((service, index) => (
-                        <div key={index} className="flex items-center gap-4 p-3 rounded-lg border">
-                            <div className="p-3 bg-accent/20 rounded-full">
-                                <MapPin className="h-6 w-6 text-accent" />
+        <div className="mt-8">
+            {isLoading && <LoadingSpinner />}
+            {!isLoading && services.length === 0 && (
+                 <Alert>
+                    <Bot className="h-4 w-4" />
+                    <AlertTitle>ಪ್ರಾರಂಭಿಸಲು ಹುಡುಕಿ</AlertTitle>
+                    <AlertDescription>
+                        ಹತ್ತಿರದ ಕೃಷಿ ಸೇವೆಗಳನ್ನು ಹುಡುಕಲು ಮೇಲಿನ ಹುಡುಕಾಟ ಪಟ್ಟಿಯನ್ನು ಬಳಸಿ ಅಥವಾ ನಿಮ್ಮ ಸ್ಥಳವನ್ನು ಪತ್ತೆ ಮಾಡಿ.
+                    </AlertDescription>
+                </Alert>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {services.map((service, index) => (
+                    <Card key={index}>
+                        <CardContent className="p-4">
+                            <div className="flex gap-4">
+                                <div className="p-3 bg-accent/20 rounded-full h-fit">
+                                    {getCategoryIcon(service.category)}
+                                </div>
+                                <div className="flex-grow space-y-2">
+                                    <h3 className="font-bold text-lg text-primary">{service.name}</h3>
+                                    <p className="text-sm font-semibold text-muted-foreground">{service.category}</p>
+                                    <p className="text-sm text-muted-foreground">{service.address}</p>
+                                    {service.phoneNumber && (
+                                        <a href={`tel:${service.phoneNumber}`} className="flex items-center gap-2 text-sm text-accent hover:underline">
+                                            <Phone className="h-4 w-4" /> {service.phoneNumber}
+                                        </a>
+                                    )}
+                                    <p className="text-sm font-bold">{service.distance}</p>
+                                </div>
                             </div>
-                            <div>
-                                <h3 className="font-semibold">{service.name}</h3>
-                                <p className="text-sm text-muted-foreground">{serviceTypes[service.type]}</p>
-                                <p className="text-sm font-bold text-primary">{service.distance}</p>
+                            <div className="flex gap-2 mt-4">
+                                <Button asChild variant="outline" className="flex-1">
+                                    <a href={service.directionsUrl} target="_blank" rel="noopener noreferrer">
+                                        <Navigation className="mr-2 h-4 w-4" /> ದಿಕ್ಕುಗಳು
+                                    </a>
+                                </Button>
+                                {service.audioUri && (
+                                    <Button onClick={() => playAudio(service.audioUri!)} variant="secondary" className="flex-1">
+                                        <Volume2 className="mr-2 h-4 w-4" /> ಮಾಹಿತಿ ಕೇಳಿ
+                                    </Button>
+                                )}
                             </div>
-                        </div>
-                        ))}
-                    </div>
-                </CardContent>
-            </Card>
+                        </CardContent>
+                    </Card>
+                ))}
+            </div>
         </div>
       </div>
     </div>
