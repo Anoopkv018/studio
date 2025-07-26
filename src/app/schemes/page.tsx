@@ -1,16 +1,24 @@
 
 'use client';
 
-import { useState, type FormEvent, type ReactNode } from 'react';
+import { useState, type FormEvent, type ReactNode, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { PageHeader } from '@/components/common/PageHeader';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
-import { getGovtSchemeInfo } from '@/ai/flows/govt-scheme-info';
+import { getGovtSchemeInfo, type GovtSchemeInfoOutput } from '@/ai/flows/govt-scheme-info';
 import { useToast } from '@/hooks/use-toast';
-import { Landmark } from 'lucide-react';
+import { Landmark, Mic, MicOff, Phone, Volume2, Globe } from 'lucide-react';
 import React from 'react';
+import { cn } from '@/lib/utils';
+
+declare global {
+  interface Window {
+    SpeechRecognition: any;
+    webkitSpeechRecognition: any;
+  }
+}
 
 // A simple component to render the scheme info with clickable links and bullet points
 const RenderSchemeInfo = ({ content }: { content: string }) => {
@@ -59,12 +67,82 @@ const RenderSchemeInfo = ({ content }: { content: string }) => {
 export default function SchemesPage() {
   const [query, setQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [result, setResult] = useState<string | null>(null);
+  const [result, setResult] = useState<GovtSchemeInfoOutput | null>(null);
+  const [isRecording, setIsRecording] = useState(false);
   const { toast } = useToast();
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const recognitionRef = useRef<any>(null);
 
-  const handleSubmit = async (event: FormEvent) => {
+  useEffect(() => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      recognitionRef.current = new SpeechRecognition();
+      recognitionRef.current.continuous = false;
+      recognitionRef.current.lang = 'kn-IN';
+      recognitionRef.current.interimResults = false;
+      recognitionRef.current.maxAlternatives = 1;
+
+      recognitionRef.current.onresult = (event: any) => {
+        const recognizedText = event.results[0][0].transcript;
+        setQuery(recognizedText);
+        handleSearch(event, recognizedText);
+      };
+      
+      recognitionRef.current.onerror = (event: any) => {
+        toast({
+          title: 'ಧ್ವನಿ ಗುರುತಿಸುವಿಕೆಯಲ್ಲಿ ದೋಷ',
+          description: `Error: ${event.error}`,
+          variant: 'destructive',
+        });
+        stopRecording();
+      };
+      
+      recognitionRef.current.onend = () => {
+        if(isRecording) stopRecording();
+      }
+
+    }
+
+    return () => {
+        if(recognitionRef.current) {
+            recognitionRef.current.stop();
+        }
+    }
+  }, [isRecording, toast]);
+
+  const startRecording = () => {
+    if (recognitionRef.current) {
+        setQuery('');
+        setResult(null);
+        setIsRecording(true);
+        recognitionRef.current.start();
+    } else {
+        toast({
+            title: 'ಧ್ವನಿ ಗುರುತಿಸುವಿಕೆ ಬೆಂಬಲಿಸುವುದಿಲ್ಲ',
+            description: 'ನಿಮ್ಮ ಬ್ರೌಸರ್ ಧ್ವನಿ ಗುರುತಿಸುವಿಕೆಯನ್ನು ಬೆಂಬಲಿಸುವುದಿಲ್ಲ.',
+            variant: 'destructive',
+        });
+    }
+  }
+
+  const stopRecording = () => {
+    if (recognitionRef.current) {
+        recognitionRef.current.stop();
+        setIsRecording(false);
+    }
+  }
+
+  const toggleRecording = () => {
+      if(isRecording) {
+          stopRecording();
+      } else {
+          startRecording();
+      }
+  }
+
+  const handleSearch = async (event: FormEvent, searchTerm: string = query) => {
     event.preventDefault();
-    if (!query.trim()) {
+    if (!searchTerm.trim()) {
       toast({
         title: 'ಹುಡುಕಾಟ ಪದ ಖಾಲಿಯಾಗಿದೆ',
         description: 'ದಯವಿಟ್ಟು ಯೋಜನೆಗೆ ಸಂಬಂಧಿಸಿದ ಪದವನ್ನು ನಮೂದಿಸಿ.',
@@ -77,8 +155,8 @@ export default function SchemesPage() {
     setResult(null);
 
     try {
-      const response = await getGovtSchemeInfo({ query });
-      setResult(response.summary);
+      const response = await getGovtSchemeInfo({ query: searchTerm });
+      setResult(response);
     } catch (e) {
       console.error(e);
       toast({
@@ -91,6 +169,12 @@ export default function SchemesPage() {
     }
   };
 
+  const playAudio = () => {
+    if (audioRef.current) {
+      audioRef.current.play();
+    }
+  };
+
   return (
     <div className="container mx-auto px-4 py-8 md:py-12">
       <PageHeader
@@ -100,36 +184,71 @@ export default function SchemesPage() {
       <div className="max-w-2xl mx-auto">
         <Card>
           <CardContent className="p-6">
-            <form onSubmit={handleSubmit} className="flex gap-4">
+            <form onSubmit={handleSearch} className="flex gap-4 items-center">
               <Input
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="ಯೋಜನೆಗಳ ಬಗ್ಗೆ ಇಲ್ಲಿ ಹುಡುಕಿ..."
                 className="flex-grow"
-                disabled={isLoading}
+                disabled={isLoading || isRecording}
               />
-              <Button type="submit" disabled={isLoading}>
+               <Button type="button" size="icon" onClick={toggleRecording} variant={isRecording ? 'destructive' : 'outline'}>
+                {isRecording ? <MicOff /> : <Mic />}
+                <span className="sr-only">{isRecording ? 'ಧ್ವನಿಮುದ್ರಣ ನಿಲ್ಲಿಸಿ' : 'ಧ್ವನಿಮುದ್ರಣ ಪ್ರಾರಂಭಿಸಿ'}</span>
+              </Button>
+              <Button type="submit" disabled={isLoading || isRecording || !query.trim()}>
                 {isLoading ? 'ಹುಡುಕಲಾಗುತ್ತಿದೆ...' : 'ಹುಡುಕಿ'}
               </Button>
             </form>
           </CardContent>
         </Card>
 
-        {isLoading && <LoadingSpinner />}
+        {(isLoading || isRecording) && <LoadingSpinner className={cn({'hidden': !isLoading})}/>}
+        {isRecording && <p className="text-center text-primary font-semibold mt-4 animate-pulse">ಕೇಳಿಸಿಕೊಳ್ಳಲಾಗುತ್ತಿದೆ...</p>}
 
-        {result && (
+        {result && result.summary && (
           <Card className="mt-6">
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="flex items-center gap-2">
                 <Landmark className="text-primary" /> ಸಂಬಂಧಿತ ಯೋಜನೆಗಳ ಮಾಹಿತಿ
               </CardTitle>
+               {result.audioUri && (
+                <>
+                  <Button variant="outline" size="icon" onClick={playAudio}>
+                    <Volume2 className="h-5 w-5" />
+                  </Button>
+                  <audio ref={audioRef} src={result.audioUri} className="hidden" />
+                </>
+              )}
             </CardHeader>
             <CardContent>
-              <RenderSchemeInfo content={result} />
+              <RenderSchemeInfo content={result.summary} />
             </CardContent>
           </Card>
         )}
+        
+        <Card className="mt-6">
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                    <Phone className="text-primary" /> ಸಂಪರ್ಕ ಮಾಹಿತಿ
+                </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 text-muted-foreground">
+                <p>ಹೆಚ್ಚಿನ ಮಾಹಿತಿಗಾಗಿ, ದಯವಿಟ್ಟು ನಿಮ್ಮ ಹತ್ತಿರದ ಕೃಷಿ ಇಲಾಖೆಯನ್ನು ಸಂಪರ್ಕಿಸಿ:</p>
+                <div className="flex items-center gap-3">
+                    <Phone className="h-4 w-4 text-accent" />
+                    <span>ರೈತ ಸಂಪರ್ಕ ಕೇಂದ್ರ: 1800-425-3553</span>
+                </div>
+                 <div className="flex items-center gap-3">
+                    <Globe className="h-4 w-4 text-accent" />
+                     <a href="https://raitamitra.karnataka.gov.in/" target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">
+                        ರೈತ ಮಿತ್ರ ಪೋರ್ಟಲ್
+                    </a>
+                </div>
+            </CardContent>
+        </Card>
+
       </div>
     </div>
   );
