@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, type FormEvent, useRef } from 'react';
+import { useState, type FormEvent, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -9,14 +9,91 @@ import { PageHeader } from '@/components/common/PageHeader';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { getMarketPrice, type MarketPriceOutput } from '@/ai/flows/market-price-query';
 import { useToast } from '@/hooks/use-toast';
-import { DollarSign, Volume2 } from 'lucide-react';
+import { DollarSign, Volume2, Mic, MicOff } from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+declare global {
+  interface Window {
+    SpeechRecognition: any;
+    webkitSpeechRecognition: any;
+  }
+}
 
 export default function PricePage() {
   const [query, setQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<MarketPriceOutput | null>(null);
+  const [isRecording, setIsRecording] = useState(false);
   const { toast } = useToast();
   const audioRef = useRef<HTMLAudioElement>(null);
+  const recognitionRef = useRef<any>(null);
+
+  useEffect(() => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      recognitionRef.current = new SpeechRecognition();
+      recognitionRef.current.continuous = false;
+      recognitionRef.current.lang = 'kn-IN'; // Kannada
+      recognitionRef.current.interimResults = false;
+      recognitionRef.current.maxAlternatives = 1;
+
+      recognitionRef.current.onresult = (event: any) => {
+        const recognizedText = event.results[0][0].transcript;
+        setQuery(recognizedText);
+        stopRecording();
+      };
+
+      recognitionRef.current.onerror = (event: any) => {
+        toast({
+          title: 'ಧ್ವನಿ ಗುರುತಿಸುವಿಕೆಯಲ್ಲಿ ದೋಷ',
+          description: `Error: ${event.error}`,
+          variant: 'destructive',
+        });
+        stopRecording();
+      };
+      
+      recognitionRef.current.onend = () => {
+        if(isRecording) stopRecording();
+      }
+
+    } else {
+       toast({
+        title: 'ಧ್ವನಿ ಗುರುತಿಸುವಿಕೆ ಬೆಂಬಲಿಸುವುದಿಲ್ಲ',
+        description: 'ನಿಮ್ಮ ಬ್ರೌಸರ್ ಧ್ವನಿ ಗುರುತಿಸುವಿಕೆಯನ್ನು ಬೆಂಬಲಿಸುವುದಿಲ್ಲ.',
+        variant: 'destructive',
+      });
+    }
+
+    return () => {
+        if(recognitionRef.current) {
+            recognitionRef.current.stop();
+        }
+    }
+  }, [isRecording, toast]);
+  
+  const startRecording = () => {
+    if (recognitionRef.current) {
+        setQuery('');
+        setResult(null);
+        setIsRecording(true);
+        recognitionRef.current.start();
+    }
+  }
+
+  const stopRecording = () => {
+    if (recognitionRef.current) {
+        recognitionRef.current.stop();
+        setIsRecording(false);
+    }
+  }
+
+  const toggleRecording = () => {
+      if(isRecording) {
+          stopRecording();
+      } else {
+          startRecording();
+      }
+  }
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -62,23 +139,28 @@ export default function PricePage() {
       <div className="max-w-2xl mx-auto">
         <Card>
           <CardContent className="p-6">
-            <form onSubmit={handleSubmit} className="flex gap-4">
+            <form onSubmit={handleSubmit} className="flex gap-4 items-center">
               <Input
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="ಉದಾ: ಟೊಮೆಟೋ ಬೆಲೆ ಇಂದು ಎಷ್ಟು?"
+                placeholder="ಇಲ್ಲಿ ಟೈಪ್ ಮಾಡಿ ಅಥವಾ ಮೈಕ್ ಬಳಸಿ..."
                 className="flex-grow"
-                disabled={isLoading}
+                disabled={isLoading || isRecording}
               />
-              <Button type="submit" disabled={isLoading}>
+               <Button type="button" size="icon" onClick={toggleRecording} variant={isRecording ? 'destructive' : 'outline'}>
+                {isRecording ? <MicOff /> : <Mic />}
+                <span className="sr-only">{isRecording ? 'ಧ್ವನಿಮುದ್ರಣ ನಿಲ್ಲಿಸಿ' : 'ಧ್ವನಿಮುದ್ರಣ ಪ್ರಾರಂಭಿಸಿ'}</span>
+              </Button>
+              <Button type="submit" disabled={isLoading || isRecording || !query.trim()}>
                 {isLoading ? 'ಪಡೆಯಲಾಗುತ್ತಿದೆ...' : 'ಬೆಲೆ ಪಡೆಯಿರಿ'}
               </Button>
             </form>
           </CardContent>
         </Card>
 
-        {isLoading && <LoadingSpinner />}
+        {(isLoading || isRecording) && <LoadingSpinner className={cn({'hidden': !isLoading})}/>}
+        {isRecording && <p className="text-center text-primary font-semibold mt-4 animate-pulse">ಕೇಳಿಸಿಕೊಳ್ಳಲಾಗುತ್ತಿದೆ...</p>}
 
         {result && (
           <Card className="mt-6">

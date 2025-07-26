@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -64,6 +65,8 @@ const marketPriceFlow = ai.defineFlow(
       throw new Error('No output from marketPricePrompt');
     }
 
+    const fullTextResponse = `ಬೆಳೆ: ${output.crop}, ದಿನಾಂಕ: ${output.date}, ಇಂದು ಅಂದಾಜು ಬೆಲೆ: ${output.estimatedPrice}, ಮಾರಾಟ ಸಲಹೆ: ${output.salesAdvice}, ತಜ್ಞ ಸಲಹೆ: ${output.expertAdvice}`;
+
     const ttsOutput = await ai.generate({
       model: googleAI.model('gemini-2.5-flash-preview-tts'),
       config: {
@@ -74,7 +77,7 @@ const marketPriceFlow = ai.defineFlow(
           },
         },
       },
-      prompt: `Kannada: ಬೆಳೆ: ${output.crop}, ದಿನಾಂಕ: ${output.date}, ಇಂದು ಅಂದಾಜು ಬೆಲೆ: ${output.estimatedPrice}, ಮಾರಾಟ ಸಲಹೆ: ${output.salesAdvice}, ತಜ್ಞ ಸಲಹೆ: ${output.expertAdvice}`,
+      prompt: fullTextResponse,
     });
 
     if (!ttsOutput.media) {
@@ -87,7 +90,14 @@ const marketPriceFlow = ai.defineFlow(
 
     const audioUri = 'data:audio/wav;base64,' + (await toWav(audioBuffer));
 
-    return {...output, audioUri};
+    return {
+        crop: output.crop,
+        date: output.date,
+        estimatedPrice: output.estimatedPrice,
+        salesAdvice: output.salesAdvice,
+        expertAdvice: output.expertAdvice,
+        audioUri: audioUri,
+    };
   }
 );
 
@@ -117,5 +127,3 @@ async function toWav(
     writer.end();
   });
 }
-
-
