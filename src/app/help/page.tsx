@@ -10,6 +10,7 @@ import { Send, User, Bot, Volume2, Mic, MicOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Textarea } from '@/components/ui/textarea';
 
 interface Message {
   id: number;
@@ -55,7 +56,7 @@ export default function HelpPage() {
 
       recognitionRef.current.onresult = (event: any) => {
         const spokenText = event.results[0][0].transcript;
-        handleSubmit(spokenText);
+        setInput(spokenText);
       };
 
       recognitionRef.current.onerror = (event: any) => {
@@ -78,15 +79,17 @@ export default function HelpPage() {
     audioRef.current = audio;
   }
 
-  const handleSubmit = async (query: string) => {
-    if (!query.trim() || isLoading) return;
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!input.trim() || isLoading) return;
 
-    const userMessage: Message = { id: Date.now(), text: query, sender: 'user' };
+    const userMessage: Message = { id: Date.now(), text: input, sender: 'user' };
     setMessages((prev) => [...prev, userMessage]);
+    setInput('');
     setIsLoading(true);
 
     try {
-      const response = await askAssistant({ question: query });
+      const response = await askAssistant({ question: input });
       const assistantMessage: Message = {
         id: Date.now() + 1,
         text: response.answer,
@@ -132,10 +135,10 @@ export default function HelpPage() {
       <div className="flex-1 flex flex-col max-w-3xl mx-auto w-full bg-card border rounded-lg overflow-hidden shadow-lg">
         <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
           <div className="space-y-4">
-          {messages.length === 0 && !isRecording && (
+          {messages.length === 0 && (
             <div className="text-center text-muted-foreground pt-16">
               <Bot size={48} className="mx-auto" />
-              <p className="mt-4">ಕೃಷಿ ಮಿತ್ರ ಸಹಾಯಗಾರನಿಗೆ ಸ್ವಾಗತ! <br/> ನಿಮ್ಮ ಪ್ರಶ್ನೆಗಳನ್ನು ಕೇಳಲು ಕೆಳಗಿನ ಮೈಕ್ ಬಟನ್ ಒತ್ತಿ.</p>
+              <p className="mt-4">ಕೃಷಿ ಮಿತ್ರ ಸಹಾಯಗಾರನಿಗೆ ಸ್ವಾಗತ! <br/> ನಿಮ್ಮ ಪ್ರಶ್ನೆಗಳನ್ನು ಕೇಳಲು ಕೆಳಗಿನ ಬಾಕ್ಸ್‌ನಲ್ಲಿ ಟೈಪ್ ಮಾಡಿ ಅಥವಾ ಮೈಕ್ ಬಳಸಿ.</p>
             </div>
           )}
           {messages.map((msg) => (
@@ -187,25 +190,43 @@ export default function HelpPage() {
                   </div>
               </div>
           )}
-          {isRecording && (
+           {isRecording && (
             <div className="text-center text-primary font-semibold mt-4 animate-pulse">
                 ಕೇಳಿಸಿಕೊಳ್ಳಲಾಗುತ್ತಿದೆ...
             </div>
           )}
           </div>
         </ScrollArea>
-        <div className="border-t p-4 bg-background/80 flex justify-center items-center">
-            <Button 
-                onClick={toggleRecording} 
-                size="lg" 
-                className={cn(
-                    'rounded-full h-16 w-16 transition-all duration-300', 
-                    isRecording ? 'bg-red-500 hover:bg-red-600 scale-110' : 'btn-voice'
-                )}
+        <div className="border-t p-4 bg-background/80">
+          <form onSubmit={handleSubmit} className="flex gap-2">
+            <Textarea
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="ನಿಮ್ಮ ಪ್ರಶ್ನೆಯನ್ನು ಇಲ್ಲಿ ಟೈಪ್ ಮಾಡಿ..."
+              className="flex-1 resize-none"
+              rows={1}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSubmit(e);
+                }
+              }}
+              disabled={isLoading}
+            />
+             <Button
+                type="button"
+                size="icon"
+                onClick={toggleRecording}
+                variant={isRecording ? 'destructive' : 'outline'}
                 disabled={isLoading}
+                aria-label={isRecording ? 'ಧ್ವನಿಮುದ್ರಣ ನಿಲ್ಲಿಸಿ' : 'ಧ್ವನಿಮುದ್ರಣ ಪ್ರಾರಂಭಿಸಿ'}
             >
-                {isRecording ? <MicOff className="h-8 w-8" /> : <Mic className="h-8 w-8" />}
+                {isRecording ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
             </Button>
+            <Button type="submit" size="icon" disabled={isLoading || !input.trim()}>
+              <Send className="h-5 w-5" />
+            </Button>
+          </form>
         </div>
       </div>
     </div>
