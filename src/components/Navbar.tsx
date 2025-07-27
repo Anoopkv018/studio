@@ -13,7 +13,7 @@ export function Navbar() {
   const isDashboardPage = pathname === '/dashboard';
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <header className="sticky top-0 z-50 w-full border-b bg-primary">
       <div className="container flex h-16 items-center">
         <div className="flex items-center gap-4">
           {!isHomePage && !isDashboardPage && (
@@ -22,12 +22,13 @@ export function Navbar() {
               size="icon"
               onClick={() => router.back()}
               aria-label="Go back"
+              className="text-primary-foreground hover:bg-primary-medium hover:text-primary-foreground"
             >
               <ArrowLeft className="h-5 w-5" />
             </Button>
           )}
           <Link href="/" className="flex items-center space-x-2">
-            <span className="text-2xl font-bold font-headline text-primary">
+            <span className="text-2xl font-bold font-headline text-primary-foreground">
               ಕೃಷಿ ಮಿತ್ರ
             </span>
           </Link>

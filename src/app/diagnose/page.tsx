@@ -91,7 +91,7 @@ export default function DiagnosePage() {
         subtitle="ನಿಮ್ಮ ಬೆಳೆಯ ಚಿತ್ರವನ್ನು ಅಪ್‌ಲೋಡ್ ಮಾಡಿ ಮತ್ತು ರೋಗದ ಮಾಹಿತಿ ಹಾಗೂ ಪರಿಹಾರಗಳನ್ನು ತಕ್ಷಣವೇ ಪಡೆಯಿರಿ."
       />
       <div className="max-w-2xl mx-auto">
-        <Card>
+        <Card className="shadow-lg rounded-lg">
           <CardContent className="p-6">
             <form onSubmit={handleSubmit} className="space-y-6">
               <div>
@@ -119,7 +119,7 @@ export default function DiagnosePage() {
                         type="button"
                         variant="destructive"
                         size="icon"
-                        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity rounded-full"
                         onClick={(e) => {
                           e.stopPropagation();
                           clearImage();
@@ -130,14 +130,14 @@ export default function DiagnosePage() {
                     </div>
                   ) : (
                     <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                      <Upload className="h-12 w-12" />
+                      <Upload className="h-12 w-12 text-primary-light" />
                       <p className="font-semibold">ಚಿತ್ರವನ್ನು ಅಪ್‌ಲೋಡ್ ಮಾಡಲು ಇಲ್ಲಿ ಕ್ಲಿಕ್ ಮಾಡಿ</p>
                       <p className="text-sm">PNG, JPG</p>
                     </div>
                   )}
                 </div>
               </div>
-              <Button type="submit" className="w-full" disabled={isLoading || !imagePreview}>
+              <Button type="submit" className="w-full bg-primary-medium text-primary-foreground hover:bg-primary-medium/90 rounded-lg" disabled={isLoading || !imagePreview}>
                 {isLoading ? 'ವಿಶ್ಲೇಷಿಸಲಾಗುತ್ತಿದೆ...' : 'ರೋಗ ಪತ್ತೆ ಮಾಡಿ'}
               </Button>
             </form>
@@ -147,21 +147,21 @@ export default function DiagnosePage() {
         {isLoading && <LoadingSpinner />}
 
         {error && (
-          <Alert variant="destructive" className="mt-6">
+          <Alert variant="destructive" className="mt-6 rounded-lg">
             <AlertTitle>ದೋಷ</AlertTitle>
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
 
         {result && (
-          <Card className="mt-6">
+          <Card className="mt-6 shadow-lg rounded-lg">
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
+              <CardTitle className="flex items-center gap-2 text-primary">
                 <Leaf className="text-primary" /> ವಿಶ್ಲೇಷಣೆಯ ಫಲಿತಾಂಶ
               </CardTitle>
               {result.audioUri && (
                 <>
-                  <Button variant="outline" size="icon" onClick={playAudio}>
+                  <Button variant="outline" size="icon" onClick={playAudio} className="rounded-full">
                     <Volume2 className="h-5 w-5" />
                   </Button>
                   <audio ref={audioRef} src={result.audioUri} className="hidden" />

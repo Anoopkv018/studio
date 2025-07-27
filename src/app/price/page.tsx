@@ -137,7 +137,7 @@ export default function PricePage() {
         subtitle="ನಿಮ್ಮ ಬೆಳೆಗೆ ಇಂದಿನ ಮಾರುಕಟ್ಟೆ ಬೆಲೆ ಏನು? ಎಂದು ಇಲ್ಲಿ ಕೇಳಿ ಮತ್ತು ತಕ್ಷಣವೇ ಉತ್ತರ, ಹಾಗೂ ಮಾರಾಟ ಸಲಹೆಗಳನ್ನು ಪಡೆಯಿರಿ."
       />
       <div className="max-w-2xl mx-auto">
-        <Card>
+        <Card className="shadow-lg rounded-lg">
           <CardContent className="p-6">
             <form onSubmit={handleSubmit} className="flex gap-4 items-center">
               <Input
@@ -145,14 +145,14 @@ export default function PricePage() {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="ಇಲ್ಲಿ ಟೈಪ್ ಮಾಡಿ ಅಥವಾ ಮೈಕ್ ಬಳಸಿ..."
-                className="flex-grow"
+                className="flex-grow rounded-lg"
                 disabled={isLoading || isRecording}
               />
-               <Button type="button" size="icon" onClick={toggleRecording} variant={isRecording ? 'destructive' : 'outline'}>
+               <Button type="button" size="icon" onClick={toggleRecording} className={cn('rounded-full', isRecording ? 'bg-red-500 hover:bg-red-600' : 'btn-voice')}>
                 {isRecording ? <MicOff /> : <Mic />}
                 <span className="sr-only">{isRecording ? 'ಧ್ವನಿಮುದ್ರಣ ನಿಲ್ಲಿಸಿ' : 'ಧ್ವನಿಮುದ್ರಣ ಪ್ರಾರಂಭಿಸಿ'}</span>
               </Button>
-              <Button type="submit" disabled={isLoading || isRecording || !query.trim()}>
+              <Button type="submit" disabled={isLoading || isRecording || !query.trim()} className="bg-primary-medium text-primary-foreground hover:bg-primary-medium/90 rounded-lg">
                 {isLoading ? 'ಪಡೆಯಲಾಗುತ್ತಿದೆ...' : 'ಬೆಲೆ ಪಡೆಯಿರಿ'}
               </Button>
             </form>
@@ -163,14 +163,14 @@ export default function PricePage() {
         {isRecording && <p className="text-center text-primary font-semibold mt-4 animate-pulse">ಕೇಳಿಸಿಕೊಳ್ಳಲಾಗುತ್ತಿದೆ...</p>}
 
         {result && (
-          <Card className="mt-6">
+          <Card className="mt-6 shadow-lg rounded-lg">
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
+              <CardTitle className="flex items-center gap-2 text-primary">
                 <DollarSign className="text-primary" /> ಮಾರುಕಟ್ಟೆ ಮಾಹಿತಿ
               </CardTitle>
               {result.audioUri && (
                 <>
-                  <Button variant="outline" size="icon" onClick={playAudio}>
+                  <Button variant="outline" size="icon" onClick={playAudio} className="rounded-full">
                     <Volume2 className="h-5 w-5" />
                   </Button>
                   <audio ref={audioRef} src={result.audioUri} className="hidden" />

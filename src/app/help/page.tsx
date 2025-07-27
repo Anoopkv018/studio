@@ -3,13 +3,12 @@
 
 import { useState, useRef, useEffect, type FormEvent } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { PageHeader } from '@/components/common/PageHeader';
 import { askAssistant } from '@/ai/flows/general-assistant-chat';
 import { useToast } from '@/hooks/use-toast';
 import { Send, User, Bot, Volume2, Mic, MicOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface Message {
@@ -19,12 +18,22 @@ interface Message {
   audio?: string;
 }
 
+declare global {
+  interface Window {
+    SpeechRecognition: any;
+    webkitSpeechRecognition: any;
+  }
+}
+
 export default function HelpPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const recognitionRef = useRef<any>(null);
   const { toast } = useToast();
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     if (scrollAreaRef.current) {
@@ -34,23 +43,50 @@ export default function HelpPage() {
         }
     }
   }, [messages]);
+  
+  useEffect(() => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      recognitionRef.current = new SpeechRecognition();
+      recognitionRef.current.continuous = false;
+      recognitionRef.current.lang = 'kn-IN';
+      recognitionRef.current.interimResults = false;
+      recognitionRef.current.maxAlternatives = 1;
 
+      recognitionRef.current.onresult = (event: any) => {
+        const spokenText = event.results[0][0].transcript;
+        handleSubmit(spokenText);
+      };
+
+      recognitionRef.current.onerror = (event: any) => {
+        toast({ title: 'ಧ್ವನಿ ಗುರುತಿಸುವಿಕೆಯಲ್ಲಿ ದೋಷ', description: `Error: ${event.error}`, variant: 'destructive'});
+        setIsRecording(false);
+      };
+      
+      recognitionRef.current.onend = () => {
+        setIsRecording(false);
+      };
+    }
+  }, [toast]);
+  
   const playAudio = (audioDataUri: string) => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+    }
     const audio = new Audio(audioDataUri);
     audio.play();
+    audioRef.current = audio;
   }
 
-  const handleSubmit = async (event: FormEvent) => {
-    event.preventDefault();
-    if (!input.trim() || isLoading) return;
+  const handleSubmit = async (query: string) => {
+    if (!query.trim() || isLoading) return;
 
-    const userMessage: Message = { id: Date.now(), text: input, sender: 'user' };
+    const userMessage: Message = { id: Date.now(), text: query, sender: 'user' };
     setMessages((prev) => [...prev, userMessage]);
-    setInput('');
     setIsLoading(true);
 
     try {
-      const response = await askAssistant({ question: input });
+      const response = await askAssistant({ question: query });
       const assistantMessage: Message = {
         id: Date.now() + 1,
         text: response.answer,
@@ -58,6 +94,9 @@ export default function HelpPage() {
         audio: response.audio,
       };
       setMessages((prev) => [...prev, assistantMessage]);
+      if(response.audio){
+        playAudio(response.audio);
+      }
     } catch (e) {
       console.error(e);
       toast({
@@ -65,25 +104,38 @@ export default function HelpPage() {
         description: 'ಉತ್ತರ ಪಡೆಯಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ. ದಯವಿಟ್ಟು ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.',
         variant: 'destructive',
       });
-      setMessages(prev => prev.slice(0, -1)); // Remove user message on error
+      setMessages(prev => prev.slice(0, -1));
     } finally {
       setIsLoading(false);
     }
   };
   
+  const toggleRecording = () => {
+    if (isRecording) {
+      recognitionRef.current?.stop();
+    } else {
+      if (!recognitionRef.current) {
+        toast({ title: 'ಧ್ವನಿ ಗುರುತಿಸುವಿಕೆ ಬೆಂಬಲಿಸುವುದಿಲ್ಲ', description: 'ನಿಮ್ಮ ಬ್ರೌಸರ್ ಧ್ವನಿ ಗುರುತಿಸುವಿಕೆಯನ್ನು ಬೆಂಬಲಿಸುವುದಿಲ್ಲ.', variant: 'destructive' });
+        return;
+      }
+      setIsRecording(true);
+      recognitionRef.current?.start();
+    }
+  };
+
   return (
     <div className="container mx-auto px-4 py-8 md:py-12 flex flex-col h-[calc(100vh-4rem)]">
       <PageHeader
         title="ಸಹಾಯಗಾರರೊಂದಿಗೆ ಮಾತನಾಡಿ"
         subtitle="ನಿಮ್ಮ ಯಾವುದೇ ಕೃಷಿ ಸಂಬಂಧಿತ ಪ್ರಶ್ನೆಗಳನ್ನು ಇಲ್ಲಿ ಕೇಳಿ. ನಮ್ಮ AI ಸಹಾಯಗಾರ ನಿಮಗೆ ಉತ್ತರಿಸುತ್ತಾರೆ."
       />
-      <div className="flex-1 flex flex-col max-w-3xl mx-auto w-full bg-card border rounded-lg overflow-hidden">
+      <div className="flex-1 flex flex-col max-w-3xl mx-auto w-full bg-card border rounded-lg overflow-hidden shadow-lg">
         <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
           <div className="space-y-4">
-          {messages.length === 0 && (
+          {messages.length === 0 && !isRecording && (
             <div className="text-center text-muted-foreground pt-16">
               <Bot size={48} className="mx-auto" />
-              <p className="mt-4">ಕೃಷಿ ಮಿತ್ರ ಸಹಾಯಗಾರನಿಗೆ ಸ್ವಾಗತ! <br/> ನಿಮ್ಮ ಪ್ರಶ್ನೆಗಳನ್ನು ಕೆಳಗೆ ಟೈಪ್ ಮಾಡಿ.</p>
+              <p className="mt-4">ಕೃಷಿ ಮಿತ್ರ ಸಹಾಯಗಾರನಿಗೆ ಸ್ವಾಗತ! <br/> ನಿಮ್ಮ ಪ್ರಶ್ನೆಗಳನ್ನು ಕೇಳಲು ಕೆಳಗಿನ ಮೈಕ್ ಬಟನ್ ಒತ್ತಿ.</p>
             </div>
           )}
           {messages.map((msg) => (
@@ -103,14 +155,14 @@ export default function HelpPage() {
                 className={cn(
                   'max-w-xs md:max-w-md rounded-lg px-4 py-2 text-sm md:text-base',
                   msg.sender === 'user'
-                    ? 'bg-primary text-primary-foreground rounded-br-none'
+                    ? 'bg-primary-medium text-primary-foreground rounded-br-none'
                     : 'bg-muted rounded-bl-none'
                 )}
               >
                 {msg.text}
               </div>
                {msg.sender === 'assistant' && msg.audio && (
-                <Button size="icon" variant="ghost" onClick={() => playAudio(msg.audio!)}>
+                <Button size="icon" variant="ghost" onClick={() => playAudio(msg.audio!)} className="rounded-full">
                     <Volume2 className="h-5 w-5 text-muted-foreground" />
                 </Button>
               )}
@@ -135,22 +187,25 @@ export default function HelpPage() {
                   </div>
               </div>
           )}
+          {isRecording && (
+            <div className="text-center text-primary font-semibold mt-4 animate-pulse">
+                ಕೇಳಿಸಿಕೊಳ್ಳಲಾಗುತ್ತಿದೆ...
+            </div>
+          )}
           </div>
         </ScrollArea>
-        <div className="border-t p-4 bg-background/80">
-          <form onSubmit={handleSubmit} className="flex items-center gap-2">
-            <Input
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="ಇಲ್ಲಿ ನಿಮ್ಮ ಪ್ರಶ್ನೆಯನ್ನು ಟೈಪ್ ಮಾಡಿ..."
-              className="flex-1"
-              disabled={isLoading}
-              autoComplete="off"
-            />
-            <Button type="submit" size="icon" disabled={isLoading || !input.trim()}>
-              <Send className="h-5 w-5" />
+        <div className="border-t p-4 bg-background/80 flex justify-center items-center">
+            <Button 
+                onClick={toggleRecording} 
+                size="lg" 
+                className={cn(
+                    'rounded-full h-16 w-16 transition-all duration-300', 
+                    isRecording ? 'bg-red-500 hover:bg-red-600 scale-110' : 'btn-voice'
+                )}
+                disabled={isLoading}
+            >
+                {isRecording ? <MicOff className="h-8 w-8" /> : <Mic className="h-8 w-8" />}
             </Button>
-          </form>
         </div>
       </div>
     </div>

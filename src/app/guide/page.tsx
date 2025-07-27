@@ -64,7 +64,7 @@ export default function GuidePage() {
         subtitle="ನಿಮ್ಮ ಬೆಳೆ, ಪ್ರದೇಶ ಮತ್ತು ಜಮೀನಿನ ಅಳತೆಯನ್ನು ನಮೂದಿಸಿ, ಮತ್ತು ವಾರದಿಂದ ವಾರಕ್ಕೆ ವಿವರವಾದ ಕೃಷಿ ಮಾರ್ಗದರ್ಶನವನ್ನು ಪಡೆಯಿರಿ."
       />
       <div className="max-w-2xl mx-auto">
-        <Card>
+        <Card className="shadow-lg rounded-lg">
           <CardContent className="p-6">
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
@@ -75,7 +75,7 @@ export default function GuidePage() {
                     <FormItem>
                       <FormLabel>ಬೆಳೆ ಹೆಸರು</FormLabel>
                       <FormControl>
-                        <Input placeholder="ಉದಾ: ರಾಗಿ, ಭತ್ತ" {...field} />
+                        <Input placeholder="ಉದಾ: ರಾಗಿ, ಭತ್ತ" {...field} className="rounded-lg" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -88,7 +88,7 @@ export default function GuidePage() {
                     <FormItem>
                       <FormLabel>ತಾಲೂಕು</FormLabel>
                       <FormControl>
-                        <Input placeholder="ಉದಾ: ಮೈಸೂರು, ಮಂಡ್ಯ" {...field} />
+                        <Input placeholder="ಉದಾ: ಮೈಸೂರು, ಮಂಡ್ಯ" {...field} className="rounded-lg" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -101,13 +101,13 @@ export default function GuidePage() {
                     <FormItem>
                       <FormLabel>ಜಮೀನಿನ ವಿಸ್ತೀರ್ಣ (ಹೆಕ್ಟೇರ್‌ಗಳಲ್ಲಿ)</FormLabel>
                       <FormControl>
-                        <Input type="number" step="0.1" {...field} />
+                        <Input type="number" step="0.1" {...field} className="rounded-lg" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-                <Button type="submit" className="w-full" disabled={isLoading}>
+                <Button type="submit" className="w-full bg-primary-medium text-primary-foreground hover:bg-primary-medium/90 rounded-lg" disabled={isLoading}>
                   {isLoading ? 'ರಚಿಸಲಾಗುತ್ತಿದೆ...' : 'ಮಾರ್ಗದರ್ಶನ ಪಡೆಯಿರಿ'}
                 </Button>
               </form>
@@ -131,7 +131,7 @@ export default function GuidePage() {
                     <div className="absolute -left-[42px] top-1 h-6 w-6 bg-primary rounded-full flex items-center justify-center text-primary-foreground font-bold">
                        {index + 1}
                     </div>
-                    <Card>
+                    <Card className="shadow-lg rounded-lg">
                       <CardHeader>
                         <CardTitle className="flex items-center gap-2 text-accent">
                           <CalendarDays /> {weekTitle}

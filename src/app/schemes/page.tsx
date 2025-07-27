@@ -182,22 +182,22 @@ export default function SchemesPage() {
         subtitle="ಕೃಷಿಗೆ ಸಂಬಂಧಿಸಿದ ಸರ್ಕಾರದ ಯೋಜನೆಗಳ ಬಗ್ಗೆ ಹುಡುಕಿ. ಉದಾಹರಣೆಗೆ: ಸಬ್ಸಿಡಿ, ವಿಮೆ, ಕೃಷಿ ಯಂತ್ರೋಪಕರಣ."
       />
       <div className="max-w-2xl mx-auto">
-        <Card>
+        <Card className="shadow-lg rounded-lg">
           <CardContent className="p-6">
-            <form onSubmit={handleSearch} className="flex gap-4 items-center">
+            <form onSubmit={(e) => handleSearch(e)} className="flex gap-4 items-center">
               <Input
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="ಯೋಜನೆಗಳ ಬಗ್ಗೆ ಇಲ್ಲಿ ಹುಡುಕಿ..."
-                className="flex-grow"
+                className="flex-grow rounded-lg"
                 disabled={isLoading || isRecording}
               />
-               <Button type="button" size="icon" onClick={toggleRecording} variant={isRecording ? 'destructive' : 'outline'}>
+               <Button type="button" size="icon" onClick={toggleRecording} className={cn('rounded-full', isRecording ? 'bg-red-500 hover:bg-red-600' : 'btn-voice')}>
                 {isRecording ? <MicOff /> : <Mic />}
                 <span className="sr-only">{isRecording ? 'ಧ್ವನಿಮುದ್ರಣ ನಿಲ್ಲಿಸಿ' : 'ಧ್ವನಿಮುದ್ರಣ ಪ್ರಾರಂಭಿಸಿ'}</span>
               </Button>
-              <Button type="submit" disabled={isLoading || isRecording || !query.trim()}>
+              <Button type="submit" disabled={isLoading || isRecording || !query.trim()} className="bg-primary-medium text-primary-foreground hover:bg-primary-medium/90 rounded-lg">
                 {isLoading ? 'ಹುಡುಕಲಾಗುತ್ತಿದೆ...' : 'ಹುಡುಕಿ'}
               </Button>
             </form>
@@ -208,14 +208,14 @@ export default function SchemesPage() {
         {isRecording && <p className="text-center text-primary font-semibold mt-4 animate-pulse">ಕೇಳಿಸಿಕೊಳ್ಳಲಾಗುತ್ತಿದೆ...</p>}
 
         {result && result.summary && (
-          <Card className="mt-6">
+          <Card className="mt-6 shadow-lg rounded-lg">
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
+              <CardTitle className="flex items-center gap-2 text-primary">
                 <Landmark className="text-primary" /> ಸಂಬಂಧಿತ ಯೋಜನೆಗಳ ಮಾಹಿತಿ
               </CardTitle>
                {result.audioUri && (
                 <>
-                  <Button variant="outline" size="icon" onClick={playAudio}>
+                  <Button variant="outline" size="icon" onClick={playAudio} className="rounded-full">
                     <Volume2 className="h-5 w-5" />
                   </Button>
                   <audio ref={audioRef} src={result.audioUri} className="hidden" />
@@ -228,9 +228,9 @@ export default function SchemesPage() {
           </Card>
         )}
         
-        <Card className="mt-6">
+        <Card className="mt-6 shadow-lg rounded-lg">
             <CardHeader>
-                <CardTitle className="flex items-center gap-2">
+                <CardTitle className="flex items-center gap-2 text-primary">
                     <Phone className="text-primary" /> ಸಂಪರ್ಕ ಮಾಹಿತಿ
                 </CardTitle>
             </CardHeader>

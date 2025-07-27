@@ -10,15 +10,7 @@ export default function LandingPage() {
   return (
     <div className="flex min-h-[calc(100vh-4rem)] flex-col items-center justify-center bg-background">
       <div className="container text-center text-foreground">
-        <div className="mb-6 flex flex-col items-center justify-center space-y-4">
-            <Image
-                src="/logo/gg.png"
-                alt="Google Cloud Logo"
-                width={200}
-                height={40}
-            />
-            <p className="text-muted-foreground">presents</p>
-        </div>
+       
         <h1 className="text-4xl font-bold tracking-tight text-primary sm:text-5xl md:text-6xl">
           ಕೃಷಿ ಮಿತ್ರ
         </h1>
