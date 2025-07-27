@@ -11,21 +11,28 @@ import { Input } from '@/components/ui/input';
 import { PageHeader } from '@/components/common/PageHeader';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { generateCultivationPlan } from '@/ai/flows/cultivation-guidelines';
+import { generateCultivationPlan, type CultivationPlanOutput } from '@/ai/flows/cultivation-guidelines';
 import { useToast } from '@/hooks/use-toast';
-import { CalendarDays } from 'lucide-react';
+import { CalendarDays, CalendarIcon, DollarSign, Leaf } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { cn } from '@/lib/utils';
+import { format } from 'date-fns';
 
 const formSchema = z.object({
   cropName: z.string().min(2, { message: 'ಕನಿಷ್ಠ 2 ಅಕ್ಷರಗಳಿರಬೇಕು.' }),
   taluk: z.string().min(2, { message: 'ಕನಿಷ್ಠ 2 ಅಕ್ಷರಗಳಿರಬೇಕು.' }),
   hectares: z.coerce.number().min(0.1, { message: 'ಕನಿಷ್ಠ 0.1 ಹೆಕ್ಟೇರ್ ಇರಬೇಕು.' }),
+  cultivationDate: z.date({
+    required_error: "ಬೆಳೆ ಆರಂಭಿಸುವ ದಿನಾಂಕವನ್ನು ಆಯ್ಕೆಮಾಡಿ.",
+  }),
 });
 
 type FormValues = z.infer<typeof formSchema>;
 
 export default function GuidePage() {
   const [isLoading, setIsLoading] = useState(false);
-  const [plan, setPlan] = useState<string[] | null>(null);
+  const [result, setResult] = useState<CultivationPlanOutput | null>(null);
   const { toast } = useToast();
 
   const form = useForm<FormValues>({
@@ -34,17 +41,17 @@ export default function GuidePage() {
       cropName: '',
       taluk: '',
       hectares: 1,
+      cultivationDate: new Date(),
     },
   });
 
   const onSubmit = async (values: FormValues) => {
     setIsLoading(true);
-    setPlan(null);
+    setResult(null);
 
     try {
       const response = await generateCultivationPlan(values);
-      const weeklyPlan = response.cultivationPlan.split(/(?=ವಾರ \d+:)/).filter(s => s.trim());
-      setPlan(weeklyPlan);
+      setResult(response);
     } catch (e) {
       console.error(e);
       toast({
@@ -107,6 +114,47 @@ export default function GuidePage() {
                     </FormItem>
                   )}
                 />
+                 <FormField
+                  control={form.control}
+                  name="cultivationDate"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col">
+                      <FormLabel>ಬೆಳೆ ಆರಂಭಿಸುವ ದಿನಾಂಕ</FormLabel>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant={"outline"}
+                              className={cn(
+                                "w-full pl-3 text-left font-normal",
+                                !field.value && "text-muted-foreground"
+                              )}
+                            >
+                              {field.value ? (
+                                format(field.value, "PPP")
+                              ) : (
+                                <span>ಒಂದು ದಿನಾಂಕವನ್ನು ಆಯ್ಕೆಮಾಡಿ</span>
+                              )}
+                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={field.value}
+                            onSelect={field.onChange}
+                            disabled={(date) =>
+                              date > new Date() || date < new Date("1900-01-01")
+                            }
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
                 <Button type="submit" className="w-full bg-primary-medium text-primary-foreground hover:bg-primary-medium/90 rounded-lg" disabled={isLoading}>
                   {isLoading ? 'ರಚಿಸಲಾಗುತ್ತಿದೆ...' : 'ಮಾರ್ಗದರ್ಶನ ಪಡೆಯಿರಿ'}
                 </Button>
@@ -117,33 +165,57 @@ export default function GuidePage() {
 
         {isLoading && <LoadingSpinner />}
 
-        {plan && (
-          <div className="mt-8">
-            <h2 className="text-2xl font-bold text-center mb-6 font-headline text-primary">ಸಾಪ್ತಾಹಿಕ ಕೃಷಿ ಯೋಜನೆ</h2>
-            <div className="relative border-l-2 border-primary/50 ml-4 pl-8 space-y-8">
-              {plan.map((week, index) => {
-                const parts = week.split(':');
-                const weekTitle = parts[0];
-                const weekContent = parts.slice(1).join(':').trim();
-
-                return (
-                  <div key={index} className="relative">
-                    <div className="absolute -left-[42px] top-1 h-6 w-6 bg-primary rounded-full flex items-center justify-center text-primary-foreground font-bold">
-                       {index + 1}
+        {result && (
+          <div className="mt-8 space-y-6">
+            <Card className="shadow-lg rounded-lg">
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-primary">ಮಾಹಿತಿ ಸಾರಾಂಶ</CardTitle>
+                </CardHeader>
+                <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
+                        <CalendarDays className="h-6 w-6 text-accent"/>
+                        <div>
+                            <p className="font-semibold">ನಿರೀಕ್ಷಿತ ಇಳುವರಿ ದಿನಾಂಕ</p>
+                            <p className="text-lg font-bold">{result.estimatedYieldDate}</p>
+                        </div>
                     </div>
-                    <Card className="shadow-lg rounded-lg">
-                      <CardHeader>
-                        <CardTitle className="flex items-center gap-2 text-accent">
-                          <CalendarDays /> {weekTitle}
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <p className="text-muted-foreground whitespace-pre-wrap">{weekContent}</p>
-                      </CardContent>
-                    </Card>
-                  </div>
-                );
-              })}
+                    <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
+                        <DollarSign className="h-6 w-6 text-accent"/>
+                        <div>
+                            <p className="font-semibold">ಅಂದಾಜು ಬೆಲೆ (ಪ್ರತಿ ಕ್ವಿಂಟಲ್)</p>
+                            <p className="text-lg font-bold">{result.estimatedPrice}</p>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <div>
+              <h2 className="text-2xl font-bold text-center mb-6 font-headline text-primary">ಸಾಪ್ತಾಹಿಕ ಕೃಷಿ ಯೋಜನೆ</h2>
+              <div className="relative border-l-2 border-primary/50 ml-4 pl-8 space-y-8">
+                {result.cultivationPlan.split(/(?=ವಾರ \d+:)/).filter(s => s.trim()).map((week, index) => {
+                  const parts = week.split(':');
+                  const weekTitle = parts[0];
+                  const weekContent = parts.slice(1).join(':').trim();
+
+                  return (
+                    <div key={index} className="relative">
+                      <div className="absolute -left-[42px] top-1 h-6 w-6 bg-primary rounded-full flex items-center justify-center text-primary-foreground font-bold">
+                        {index + 1}
+                      </div>
+                      <Card className="shadow-lg rounded-lg">
+                        <CardHeader>
+                          <CardTitle className="flex items-center gap-2 text-accent">
+                            <Leaf /> {weekTitle}
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <p className="text-muted-foreground whitespace-pre-wrap">{weekContent}</p>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
         )}

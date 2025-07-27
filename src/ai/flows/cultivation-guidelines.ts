@@ -16,10 +16,13 @@ const CultivationPlanInputSchema = z.object({
   cropName: z.string().describe('The name of the crop.'),
   taluk: z.string().describe('The taluk (region) where the farming is taking place.'),
   hectares: z.number().describe('The size of the farm in hectares.'),
+  cultivationDate: z.date().describe('The date when cultivation starts.'),
 });
 export type CultivationPlanInput = z.infer<typeof CultivationPlanInputSchema>;
 
 const CultivationPlanOutputSchema = z.object({
+  estimatedYieldDate: z.string().describe('The estimated date of yield/harvest in "YYYY-MM-DD" format.'),
+  estimatedPrice: z.string().describe('The estimated average market price per quintal around the time of yield.'),
   cultivationPlan: z.string().describe('A week-by-week cultivation plan in Kannada.'),
 });
 export type CultivationPlanOutput = z.infer<typeof CultivationPlanOutputSchema>;
@@ -34,13 +37,16 @@ const cultivationPlanPrompt = ai.definePrompt({
   output: {schema: CultivationPlanOutputSchema},
   prompt: `You are an expert agriculture advisor for farmers in Karnataka, India. You respond in Kannada.
 
-Generate a week-by-week cultivation plan for the following crop, taluk, and farm size. Be as detailed as possible, and provide specific advice for each week. The plan should be optimized for yield and sustainability.
+Generate a week-by-week cultivation plan for the following crop, taluk, and farm size. Also, predict the yield date and the estimated market price at that time.
 
 Crop Name: {{{cropName}}}
 Taluk: {{{taluk}}}
 Hectares: {{{hectares}}}
+Cultivation Start Date: {{{cultivationDate}}}
 
-Cultivation Plan:`,
+1.  **Estimated Yield Date**: Based on the crop and start date, calculate the likely harvest date.
+2.  **Estimated Price**: Based on historical data and market trends, estimate the average price per quintal for the crop around the harvest date.
+3.  **Cultivation Plan**: Provide a detailed week-by-week plan from sowing to harvest.`,
 });
 
 const cultivationPlanFlow = ai.defineFlow(
