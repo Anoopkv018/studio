@@ -96,6 +96,6 @@ export default {
         'accordion-up': 'accordion-up 0.2s ease-out',
       },
     },
-  },f
+  },
   plugins: [require('tailwindcss-animate')],
 } satisfies Config;
