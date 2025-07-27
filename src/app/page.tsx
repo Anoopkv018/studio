@@ -1,75 +1,39 @@
 
-import { ServiceCard } from '@/components/ServiceCard';
-import {
-  Bot,
-  Compass,
-  DollarSign,
-  Landmark,
-  MapPin,
-  Stethoscope,
-  Youtube,
-} from 'lucide-react';
+'use client';
 
-const services = [
-  {
-    title: 'ಬೆಳೆ ರೋಗ ಪತ್ತೆ',
-    subtitle: 'ನಿಮ್ಮ ಬೆಳೆಗೆ ಬಂದಿರುವ ರೋಗವನ್ನು ಪತ್ತೆ ಮಾಡಿ',
-    icon: <Stethoscope size={40} />,
-    href: '/diagnose',
-  },
-  {
-    title: 'ಬೆಲೆ ಮಾಹಿತಿ',
-    subtitle: 'ಇಂದಿನ ಮಾರುಕಟ್ಟೆ ಬೆಲೆಗಳನ್ನು ತಿಳಿಯಿರಿ',
-    icon: <DollarSign size={40} />,
-    href: '/price',
-  },
-  {
-    title: 'ಬೆಳೆ ಬೆಳೆಸುವ ಮಾರ್ಗದರ್ಶನ',
-    subtitle: 'ವಾರಕ್ಕೊಮ್ಮೆ ಕೃಷಿ ಸಲಹೆಗಳನ್ನು ಪಡೆಯಿರಿ',
-    icon: <Compass size={40} />,
-    href: '/guide',
-  },
-  {
-    title: 'ಕೃಷಿ ಯೂಟ್ಯೂಬ್ ವಿಡಿಯೋಗಳು',
-    subtitle: 'ಕೃಷಿ ತಜ್ಞರ ವಿಡಿಯೋಗಳನ್ನು ವೀಕ್ಷಿಸಿ',
-    icon: <Youtube size={40} />,
-    href: '/youtube',
-  },
-  {
-    title: 'ಸಹಾಯಗಾರರೊಂದಿಗೆ ಮಾತನಾಡಿ',
-    subtitle: 'ನಿಮ್ಮ ಪ್ರಶ್ನೆಗಳಿಗೆ ಉತ್ತರ ಪಡೆಯಿರಿ',
-    icon: <Bot size={40} />,
-    href: '/help',
-  },
-  {
-    title: 'ಅಭಿವೃದ್ಧಿ ಯೋಜನೆಗಳು',
-    subtitle: 'ಸರ್ಕಾರಿ ಯೋಜನೆಗಳ ಬಗ್ಗೆ ಮಾಹಿತಿ',
-    icon: <Landmark size={40} />,
-    href: '/schemes',
-  },
-  {
-    title: 'ಹತ್ತಿರದ ಕೃಷಿ ಸೇವೆಗಳು',
-    subtitle: 'ಹತ್ತಿರದ ಅಂಗಡಿಗಳು ಮತ್ತು ಸೇವಾ ಕೇಂದ್ರಗಳು',
-    icon: <MapPin size={40} />,
-    href: '/agro-services',
-  },
-];
+import Link from 'next/link';
+import Image from 'next/image';
+import { Button } from '@/components/ui/button';
+import { ArrowRight } from 'lucide-react';
 
-export default function Home() {
+export default function LandingPage() {
   return (
-    <div className="container mx-auto px-4 py-8 md:py-12">
-      <div className="text-center mb-10">
-        <h1 className="text-4xl font-bold font-headline text-primary tracking-tight">
+    <div className="relative flex min-h-[calc(100vh-4rem)] flex-col items-center justify-center overflow-hidden">
+      <div className="absolute inset-0 z-[-1]">
+        <Image
+          src="https://placehold.co/1920x1080.png"
+          alt="Karnataka landscape"
+          data-ai-hint="karnataka landscape"
+          fill
+          className="object-cover"
+          priority
+        />
+        <div className="absolute inset-0 bg-background/60 backdrop-blur-sm"></div>
+      </div>
+      <div className="container relative z-10 text-center text-foreground">
+        <h1 className="text-4xl font-bold tracking-tight text-primary sm:text-5xl md:text-6xl">
           ಕೃಷಿ ಮಿತ್ರ
         </h1>
-        <p className="mt-2 text-lg text-muted-foreground">
-          ನಿಮ್ಮ ಕೃಷಿ ಚಟುವಟಿಕೆಗಳಿಗೆ ನಮ್ಮ ಬೆಂಬಲ
+        <p className="mx-auto mt-4 max-w-2xl text-lg md:text-xl">
+          ನಿಮ್ಮ ಕೃಷಿ ಚಟುವಟಿಕೆಗಳಿಗೆ ನಮ್ಮ ಬೆಂಬಲ. ಆಧುನಿಕ ತಂತ್ರಜ್ಞಾನದೊಂದಿಗೆ ನಿಮ್ಮ ಬೆಳೆಗಳನ್ನು ಬೆಳೆಸಲು ನಾವು ಸಹಾಯ ಮಾಡುತ್ತೇವೆ.
         </p>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {services.map((service) => (
-          <ServiceCard key={service.href} {...service} />
-        ))}
+        <div className="mt-8">
+          <Button asChild size="lg">
+            <Link href="/dashboard">
+              ಸೇವೆಗಳನ್ನು ವೀಕ್ಷಿಸಿ <ArrowRight className="ml-2 h-5 w-5" />
+            </Link>
+          </Button>
+        </div>
       </div>
     </div>
   );
