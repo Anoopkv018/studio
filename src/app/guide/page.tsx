@@ -50,7 +50,10 @@ export default function GuidePage() {
     setResult(null);
 
     try {
-      const response = await generateCultivationPlan(values);
+      const response = await generateCultivationPlan({
+        ...values,
+        cultivationDate: values.cultivationDate.toISOString(),
+      });
       setResult(response);
     } catch (e) {
       console.error(e);
