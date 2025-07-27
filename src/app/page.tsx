@@ -12,7 +12,7 @@ export default function LandingPage() {
       <div className="container text-center text-foreground">
         <div className="mb-6 flex flex-col items-center justify-center space-y-4">
             <Image
-                src="https://storage.googleapis.com/stedi-assets/google-cloud-logo.png"
+                src="/logo/gg.png"
                 alt="Google Cloud Logo"
                 width={200}
                 height={40}
