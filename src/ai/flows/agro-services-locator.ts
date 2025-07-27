@@ -40,7 +40,22 @@ const FindNearbyServicesOutputSchema = z.object({
 });
 export type FindNearbyServicesOutput = z.infer<typeof FindNearbyServicesOutputSchema>;
 
-// Mock Search Tool
+// Helper function to calculate distance (haversine formula)
+const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+  const R = 6371; // Radius of the Earth in km
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const distance = R * c;
+  return distance.toFixed(1); // Return distance in km with one decimal place
+};
+
+
+// Live Google Maps Search Tool
 const findServicesTool = ai.defineTool(
   {
     name: 'findNearbyAgroServices',
@@ -49,73 +64,61 @@ const findServicesTool = ai.defineTool(
     outputSchema: FindNearbyServicesOutputSchema,
   },
   async (input) => {
-    // In a real app, this would use the Google Maps Places API.
-    // For now, we return mock data based on the query.
-    console.log('Searching for services with input:', input);
-    
-    // This is a placeholder. You would replace this with a real API call.
     const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY;
     if (!GOOGLE_MAPS_API_KEY) {
-      // throw new Error("Google Maps API key is not configured.");
-       return {
-          services: [
-            {
-              name: 'ಶ್ರೀ ಲಕ್ಷ್ಮಿ ಫರ್ಟಿಲೈಸರ್',
-              category: 'ರಸಗೊಬ್ಬರ ಅಂಗಡಿ',
-              address: 'ಎನ್‌ಹೆಚ್ 275, ಹುಣಸೂರು ರಸ್ತೆ, ಮೈಸೂರು',
-              phoneNumber: '08012345678',
-              distance: '2.1 ಕಿ.ಮೀ',
-              directionsUrl: 'https://maps.google.com/maps?q=Sri+Lakshmi+Fertilizers+Mysore',
-            },
-          ],
-        };
+      throw new Error("Google Maps API key is not configured.");
     }
 
-    return {
-      services: [
-        {
-          name: 'ಶ್ರೀ ಲಕ್ಷ್ಮಿ ಫರ್ಟಿಲೈಸರ್',
-          category: 'ರಸಗೊಬ್ಬರ ಅಂಗಡಿ',
-          address: 'ಎನ್‌ಹೆಚ್ 275, ಹುಣಸೂರು ರಸ್ತೆ, ಮೈಸೂರು',
-          phoneNumber: '08012345678',
-          distance: '2.1 ಕಿ.ಮೀ',
-          directionsUrl: 'https://maps.google.com/maps?q=Sri+Lakshmi+Fertilizers+Mysore',
-        },
-        {
-          name: 'ಕಾವೇರಿ ಸೀಡ್ಸ್',
-          category: 'ಬೀಜ ಮಾರಾಟಗಾರರು',
-          address: 'ಬಸವೇಶ್ವರ ರಸ್ತೆ, ಮಂಡ್ಯ',
-          phoneNumber: '08232987654',
-          distance: '4.5 ಕಿ.ಮೀ',
-          directionsUrl: 'https://maps.google.com/maps?q=Kaveri+Seeds+Mandya',
-        },
-        {
-          name: 'ಕೃಷಿಕ ಸೇವಾ ಕೇಂದ್ರ',
-          category: 'ಸರ್ಕಾರಿ ಕೃಷಿ ಕೇಂದ್ರ',
-          address: 'ಜಿಲ್ಲಾಧಿಕಾರಿ ಕಚೇರಿ ಹತ್ತಿರ, ಹಾಸನ',
-          phoneNumber: '18004253553',
-          distance: '8.2 ಕಿ.ಮೀ',
-          directionsUrl: 'https://maps.google.com/maps?q=Krishika+Seva+Kendra+Hassan',
-        },
-        {
-            name: 'ಪಶು ಚಿಕಿತ್ಸಾಲಯ',
-            category: 'ಪಶು ವೈದ್ಯಕೀಯ ಕ್ಲಿನಿಕ್',
-            address: 'ಗ್ರಾಮಾಂತರ ಪ್ರದೇಶ, ಪಾಂಡವಪುರ',
-            distance: '12.0 ಕಿ.ಮೀ',
-            directionsUrl: 'https://maps.google.com/maps?q=Veterinary+Clinic+Pandavapura',
-        },
-         {
-            name: 'ಮಂಜುನಾಥ್ ಟ್ರಾಕ್ಟರ್ ಸೇವೆಗಳು',
-            category: 'ಟ್ರಾಕ್ಟರ್ ಸೇವೆ',
-            address: 'ಮುಖ್ಯ ರಸ್ತೆ, ಕೆ.ಆರ್.ನಗರ',
-            phoneNumber: '09876543210',
-            distance: '15.3 ಕಿ.ಮೀ',
-            directionsUrl: 'https://maps.google.com/maps?q=Manjunath+Tractor+Services+KR+Nagar',
-        },
-      ],
-    };
+    let location;
+    if (input.latitude && input.longitude) {
+      location = `${input.latitude},${input.longitude}`;
+    } else if (input.query) {
+      // Geocode the query to get lat/lng if only a query is provided
+      const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(input.query)}&key=${GOOGLE_MAPS_API_KEY}`;
+      const geocodeResponse = await fetch(geocodeUrl);
+      const geocodeData = await geocodeResponse.json();
+      if (geocodeData.status !== 'OK' || !geocodeData.results[0]) {
+        return { services: [] }; // Return empty if location not found
+      }
+      const { lat, lng } = geocodeData.results[0].geometry.location;
+      location = `${lat},${lng}`;
+      input.latitude = lat;
+      input.longitude = lng;
+    } else {
+        return { services: [] }; // No location info provided
+    }
+
+    const keywords = [
+        "fertilizer shop", "seed supplier", "pesticide store",
+        "krishi kendra", "tractor repair", "veterinary clinic",
+        "agriculture service"
+    ].join('|');
+
+    const placesUrl = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${location}&radius=${input.radius}&keyword=${encodeURIComponent(keywords)}&key=${GOOGLE_MAPS_API_KEY}&language=kn`;
+
+    const placesResponse = await fetch(placesUrl);
+    const placesData = await placesResponse.json();
+
+    if (placesData.status !== 'OK') {
+      console.error('Google Places API Error:', placesData.error_message || placesData.status);
+      return { services: [] };
+    }
+
+    const services: AgroService[] = placesData.results.map((place: any) => ({
+      name: place.name || 'ಹೆಸರು ಲಭ್ಯವಿಲ್ಲ',
+      category: place.types?.[0]?.replace(/_/g, ' ') || 'ಕೃಷಿ ಸೇವೆ',
+      address: place.vicinity || 'ವಿಳಾಸ ಲಭ್ಯವಿಲ್ಲ',
+      phoneNumber: place.formatted_phone_number, // This requires a separate Details request, will be undefined here.
+      distance: (input.latitude && input.longitude && place.geometry?.location)
+        ? `${calculateDistance(input.latitude, input.longitude, place.geometry.location.lat, place.geometry.location.lng)} ಕಿ.ಮೀ`
+        : 'ದೂರ ಲಭ್ಯವಿಲ್ಲ',
+      directionsUrl: `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(place.vicinity)}&destination_place_id=${place.place_id}`,
+    }));
+
+    return { services };
   }
 );
+
 
 async function toWav(
   pcmData: Buffer,
