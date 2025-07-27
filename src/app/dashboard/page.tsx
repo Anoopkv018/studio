@@ -35,12 +35,7 @@ const services = [
     icon: <Youtube size={40} />,
     href: '/youtube',
   },
-  {
-    title: 'ಸಹಾಯಗಾರರೊಂದಿಗೆ ಮಾತನಾಡಿ',
-    subtitle: 'ನಿಮ್ಮ ಪ್ರಶ್ನೆಗಳಿಗೆ ಉತ್ತರ ಪಡೆಯಿರಿ',
-    icon: <Bot size={40} />,
-    href: '/help',
-  },
+ 
   {
     title: 'ಅಭಿವೃದ್ಧಿ ಯೋಜನೆಗಳು',
     subtitle: 'ಸರ್ಕಾರಿ ಯೋಜನೆಗಳ ಬಗ್ಗೆ ಮಾಹಿತಿ',
