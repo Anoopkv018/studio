@@ -6,13 +6,13 @@ import { PageHeader } from '@/components/common/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { MapPin, Search, Navigation, Mic, MicOff, Phone, Volume2, Building, Bot } from 'lucide-react';
+import { MapPin, Search, Navigation, Mic, MicOff, Phone, Volume2, Building } from 'lucide-react';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { cn } from '@/lib/utils';
 import { findNearbyServices, type AgroService, type FindNearbyServicesInput } from '@/ai/flows/agro-services-locator';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Input } from '@/components/ui/input';
+import { Tractor, TestTube, Leaf, Wind } from 'lucide-react';
 
 
 declare global {
@@ -140,9 +140,11 @@ export default function AgroServicesPage() {
   };
   
   const getCategoryIcon = (category: string) => {
-      // A simple mapping, can be expanded
-      if (category.includes('ಗೊಬ್ಬರ') || category.includes('Fertilizer')) return <Bot className="h-6 w-6 text-accent" />;
-      if (category.includes('ಬೀಜ') || category.includes('Seed')) return <Building className="h-6 w-6 text-accent" />;
+      if (category.includes('ಗೊಬ್ಬರ') || category.includes('Fertilizer')) return <Wind className="h-6 w-6 text-accent" />;
+      if (category.includes('ಬೀಜ') || category.includes('Seed')) return <Leaf className="h-6 w-6 text-accent" />;
+      if (category.includes('ಪಶು') || category.includes('Veterinary')) return <TestTube className="h-6 w-6 text-accent" />;
+      if (category.includes('ಕೇಂದ್ರ') || category.includes('Center')) return <Building className="h-6 w-6 text-accent" />;
+      if (category.includes('ಟ್ರಾಕ್ಟರ್') || category.includes('Tractor')) return <Tractor className="h-6 w-6 text-accent" />;
       return <MapPin className="h-6 w-6 text-accent" />;
   }
 
@@ -170,6 +172,7 @@ export default function AgroServicesPage() {
                     onClick={toggleRecording}
                     variant={isRecording ? 'destructive' : 'outline'}
                     disabled={isLoading || isLoadingLocation}
+                    aria-label={isRecording ? 'ಧ್ವನಿಮುದ್ರಣ ನಿಲ್ಲಿಸಿ' : 'ಧ್ವನಿಮುದ್ರಣ ಪ್ರಾರಂಭಿಸಿ'}
                  >
                     {isRecording ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
                  </Button>
@@ -203,7 +206,7 @@ export default function AgroServicesPage() {
             {isLoading && <LoadingSpinner />}
             {!isLoading && services.length === 0 && (
                  <Alert>
-                    <Bot className="h-4 w-4" />
+                    <MapPin className="h-4 w-4" />
                     <AlertTitle>ಪ್ರಾರಂಭಿಸಲು ಹುಡುಕಿ</AlertTitle>
                     <AlertDescription>
                         ಹತ್ತಿರದ ಕೃಷಿ ಸೇವೆಗಳನ್ನು ಹುಡುಕಲು ಮೇಲಿನ ಹುಡುಕಾಟ ಪಟ್ಟಿಯನ್ನು ಬಳಸಿ ಅಥವಾ ನಿಮ್ಮ ಸ್ಥಳವನ್ನು ಪತ್ತೆ ಮಾಡಿ.

@@ -1,7 +1,9 @@
+
 'use server';
 
 /**
  * @fileOverview A location-based service finder for agricultural needs.
+ * This flow uses a mock tool to simulate fetching data from Google Maps.
  *
  * - findNearbyServices - A function that finds nearby agro services.
  * - FindNearbyServicesInput - The input type for the findNearbyServices function.
@@ -66,7 +68,7 @@ const findServicesTool = ai.defineTool(
           address: 'ಎನ್‌ಹೆಚ್ 275, ಹುಣಸೂರು ರಸ್ತೆ, ಮೈಸೂರು',
           phoneNumber: '08012345678',
           distance: '2.1 ಕಿ.ಮೀ',
-          directionsUrl: 'https://maps.google.com',
+          directionsUrl: 'https://maps.google.com/maps?q=Sri+Lakshmi+Fertilizers+Mysore',
         },
         {
           name: 'ಕಾವೇರಿ ಸೀಡ್ಸ್',
@@ -74,7 +76,7 @@ const findServicesTool = ai.defineTool(
           address: 'ಬಸವೇಶ್ವರ ರಸ್ತೆ, ಮಂಡ್ಯ',
           phoneNumber: '08232987654',
           distance: '4.5 ಕಿ.ಮೀ',
-          directionsUrl: 'https://maps.google.com',
+          directionsUrl: 'https://maps.google.com/maps?q=Kaveri+Seeds+Mandya',
         },
         {
           name: 'ಕೃಷಿಕ ಸೇವಾ ಕೇಂದ್ರ',
@@ -82,14 +84,22 @@ const findServicesTool = ai.defineTool(
           address: 'ಜಿಲ್ಲಾಧಿಕಾರಿ ಕಚೇರಿ ಹತ್ತಿರ, ಹಾಸನ',
           phoneNumber: '18004253553',
           distance: '8.2 ಕಿ.ಮೀ',
-          directionsUrl: 'https://maps.google.com',
+          directionsUrl: 'https://maps.google.com/maps?q=Krishika+Seva+Kendra+Hassan',
         },
         {
             name: 'ಪಶು ಚಿಕಿತ್ಸಾಲಯ',
             category: 'ಪಶು ವೈದ್ಯಕೀಯ ಕ್ಲಿನಿಕ್',
             address: 'ಗ್ರಾಮಾಂತರ ಪ್ರದೇಶ, ಪಾಂಡವಪುರ',
             distance: '12.0 ಕಿ.ಮೀ',
-            directionsUrl: 'https://maps.google.com',
+            directionsUrl: 'https://maps.google.com/maps?q=Veterinary+Clinic+Pandavapura',
+        },
+         {
+            name: 'ಮಂಜುನಾಥ್ ಟ್ರಾಕ್ಟರ್ ಸೇವೆಗಳು',
+            category: 'ಟ್ರಾಕ್ಟರ್ ಸೇವೆ',
+            address: 'ಮುಖ್ಯ ರಸ್ತೆ, ಕೆ.ಆರ್.ನಗರ',
+            phoneNumber: '09876543210',
+            distance: '15.3 ಕಿ.ಮೀ',
+            directionsUrl: 'https://maps.google.com/maps?q=Manjunath+Tractor+Services+KR+Nagar',
         },
       ],
     };
@@ -117,50 +127,61 @@ async function toWav(
   });
 }
 
-// Main exported function
-export async function findNearbyServices(input: FindNearbyServicesInput): Promise<FindNearbyServicesOutput> {
-  const { services } = await findServicesTool(input);
+const findNearbyServicesFlow = ai.defineFlow(
+  {
+    name: 'findNearbyServicesFlow',
+    inputSchema: FindNearbyServicesInputSchema,
+    outputSchema: FindNearbyServicesOutputSchema,
+  },
+  async (input) => {
+    const { services } = await findServicesTool(input);
 
-  // Generate audio for each service
-  const servicesWithAudio = await Promise.all(
-    services.map(async (service) => {
-      const infoToSpeak = `
-        ಹೆಸರು: ${service.name}.
-        ವರ್ಗ: ${service.category}.
-        ವಿಳಾಸ: ${service.address}.
-        ದೂರ: ${service.distance}.
-        ${service.phoneNumber ? `ಫೋನ್ ಸಂಖ್ಯೆ: ${service.phoneNumber}.` : ''}
-      `;
+    // Generate audio for each service
+    const servicesWithAudio = await Promise.all(
+      services.map(async (service) => {
+        const infoToSpeak = `
+          ಹೆಸರು: ${service.name}.
+          ವರ್ಗ: ${service.category}.
+          ವಿಳಾಸ: ${service.address}.
+          ದೂರ: ${service.distance}.
+          ${service.phoneNumber ? `ಫೋನ್ ಸಂಖ್ಯೆ: ${service.phoneNumber}.` : ''}
+        `;
 
-      try {
-        const { media } = await ai.generate({
-          model: googleAI.model('gemini-2.5-flash-preview-tts'),
-          config: {
-            responseModalities: ['AUDIO'],
-            speechConfig: {
-              voiceConfig: {
-                prebuiltVoiceConfig: { voiceName: 'Algenib' },
+        try {
+          const { media } = await ai.generate({
+            model: googleAI.model('gemini-2.5-flash-preview-tts'),
+            config: {
+              responseModalities: ['AUDIO'],
+              speechConfig: {
+                voiceConfig: {
+                  prebuiltVoiceConfig: { voiceName: 'Algenib' },
+                },
               },
             },
-          },
-          prompt: infoToSpeak,
-        });
+            prompt: infoToSpeak,
+          });
 
-        if (media) {
-          const audioBuffer = Buffer.from(
-            media.url.substring(media.url.indexOf(',') + 1),
-            'base64'
-          );
-          const audioUri = 'data:audio/wav;base64,' + (await toWav(audioBuffer));
-          return { ...service, audioUri };
+          if (media) {
+            const audioBuffer = Buffer.from(
+              media.url.substring(media.url.indexOf(',') + 1),
+              'base64'
+            );
+            const audioUri = 'data:audio/wav;base64,' + (await toWav(audioBuffer));
+            return { ...service, audioUri };
+          }
+        } catch (e) {
+          console.error(`Failed to generate audio for ${service.name}:`, e);
         }
-      } catch (e) {
-        console.error(`Failed to generate audio for ${service.name}:`, e);
-      }
 
-      return service; // Return service without audio URI on error
-    })
-  );
+        return service; // Return service without audio URI on error
+      })
+    );
+    return { services: servicesWithAudio };
+  }
+);
 
-  return { services: servicesWithAudio };
+
+// Main exported function
+export async function findNearbyServices(input: FindNearbyServicesInput): Promise<FindNearbyServicesOutput> {
+  return findNearbyServicesFlow(input);
 }
