@@ -70,10 +70,11 @@ const findServicesTool = ai.defineTool(
     }
 
     let location;
-    if (input.latitude && input.longitude) {
-      location = `${input.latitude},${input.longitude}`;
-    } else if (input.query) {
-      // Geocode the query to get lat/lng if only a query is provided
+    let originLat = input.latitude;
+    let originLng = input.longitude;
+
+    // If query is provided, it takes precedence for geocoding the search center.
+    if (input.query) {
       const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(input.query)}&key=${GOOGLE_MAPS_API_KEY}`;
       const geocodeResponse = await fetch(geocodeUrl);
       const geocodeData = await geocodeResponse.json();
@@ -82,8 +83,10 @@ const findServicesTool = ai.defineTool(
       }
       const { lat, lng } = geocodeData.results[0].geometry.location;
       location = `${lat},${lng}`;
-      input.latitude = lat;
-      input.longitude = lng;
+      originLat = lat; // Set the origin for distance calculation to the geocoded location
+      originLng = lng;
+    } else if (input.latitude && input.longitude) {
+        location = `${input.latitude},${input.longitude}`;
     } else {
         return { services: [] }; // No location info provided
     }
@@ -109,8 +112,8 @@ const findServicesTool = ai.defineTool(
       category: place.types?.[0]?.replace(/_/g, ' ') || 'ಕೃಷಿ ಸೇವೆ',
       address: place.vicinity || 'ವಿಳಾಸ ಲಭ್ಯವಿಲ್ಲ',
       phoneNumber: place.formatted_phone_number, // This requires a separate Details request, will be undefined here.
-      distance: (input.latitude && input.longitude && place.geometry?.location)
-        ? `${calculateDistance(input.latitude, input.longitude, place.geometry.location.lat, place.geometry.location.lng)} ಕಿ.ಮೀ`
+      distance: (originLat && originLng && place.geometry?.location)
+        ? `${calculateDistance(originLat, originLng, place.geometry.location.lat, place.geometry.location.lng)} ಕಿ.ಮೀ`
         : 'ದೂರ ಲಭ್ಯವಿಲ್ಲ',
       directionsUrl: `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(place.vicinity)}&destination_place_id=${place.place_id}`,
     }));

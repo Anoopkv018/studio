@@ -46,7 +46,7 @@ export default function AgroServicesPage() {
       recognitionRef.current.onresult = (event: any) => {
         const spokenText = event.results[0][0].transcript;
         setSearchQuery(spokenText);
-        handleSearch(spokenText);
+        handleSearch({ query: spokenText, useLocation: false });
       };
       
       recognitionRef.current.onerror = (event: any) => {
@@ -84,7 +84,7 @@ export default function AgroServicesPage() {
         (position) => {
           const { latitude, longitude } = position.coords;
           setLocation({ latitude, longitude });
-          handleSearch(null, { latitude, longitude });
+          handleSearch({ useLocation: true, loc: {latitude, longitude} });
           setIsLoadingLocation(false);
           toast({ title: 'ನಿಮ್ಮ ಸ್ಥಳ ಪತ್ತೆಯಾಗಿದೆ!' });
         },
@@ -99,8 +99,10 @@ export default function AgroServicesPage() {
     }
   };
 
-  const handleSearch = async (query: string | null = searchQuery, loc: {latitude: number, longitude: number} | null = location) => {
-    if (!query && !loc) {
+  const handleSearch = async (options: { query?: string, useLocation: boolean, loc?: {latitude: number, longitude: number} | null }) => {
+    const { query = searchQuery, useLocation, loc = location } = options;
+
+    if (!query && !useLocation) {
       toast({ title: 'ದಯವಿಟ್ಟು ಸ್ಥಳವನ್ನು ನಮೂದಿಸಿ ಅಥವಾ ಪತ್ತೆ ಮಾಡಿ', variant: 'destructive' });
       return;
     }
@@ -112,7 +114,7 @@ export default function AgroServicesPage() {
       radius: parseInt(radius, 10) * 1000, // convert km to meters
     };
 
-    if (loc) {
+    if (useLocation && loc) {
       input.latitude = loc.latitude;
       input.longitude = loc.longitude;
     } else if (query) {
@@ -129,6 +131,14 @@ export default function AgroServicesPage() {
       setIsLoading(false);
     }
   };
+
+  const handleQueryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
+    // Clear location if user starts typing, so text query is prioritized
+    if (location) {
+      setLocation(null);
+    }
+  }
 
   const playAudio = (audioUri: string) => {
     if (audioRef.current) {
@@ -163,7 +173,7 @@ export default function AgroServicesPage() {
                     placeholder="ಪಿನ್ ಕೋಡ್ ಅಥವಾ ತಾಲೂಕು ನಮೂದಿಸಿ..."
                     className="flex-grow"
                     value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onChange={handleQueryChange}
                     disabled={isLoading || isRecording || isLoadingLocation}
                  />
                  <Button
@@ -190,7 +200,7 @@ export default function AgroServicesPage() {
                 </Select>
             </div>
              <div className="flex flex-col md:flex-row gap-4 mt-4">
-                <Button className="w-full md:w-auto flex-grow" onClick={() => handleSearch()} disabled={isLoading || isRecording || isLoadingLocation}>
+                <Button className="w-full md:w-auto flex-grow" onClick={() => handleSearch({ useLocation: false })} disabled={isLoading || isRecording || isLoadingLocation}>
                     <Search className="mr-2 h-4 w-4" /> ಹುಡುಕಿ
                 </Button>
                 <Button variant="outline" className="w-full md:w-auto flex-grow" onClick={handleDetectLocation} disabled={isLoading || isRecording || isLoadingLocation}>
