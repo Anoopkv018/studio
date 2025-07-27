@@ -16,7 +16,7 @@ const CultivationPlanInputSchema = z.object({
   cropName: z.string().describe('The name of the crop.'),
   taluk: z.string().describe('The taluk (region) where the farming is taking place.'),
   hectares: z.number().describe('The size of the farm in hectares.'),
-  cultivationDate: z.date().describe('The date when cultivation starts.'),
+  cultivationDate: z.string().datetime().describe('The date when cultivation starts.'),
 });
 export type CultivationPlanInput = z.infer<typeof CultivationPlanInputSchema>;
 
