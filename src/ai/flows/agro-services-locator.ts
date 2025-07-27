@@ -54,11 +54,22 @@ const findServicesTool = ai.defineTool(
     console.log('Searching for services with input:', input);
     
     // This is a placeholder. You would replace this with a real API call.
-    // Ensure the Google Maps API key is stored securely as an environment variable.
-    // const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY;
-    // if (!GOOGLE_MAPS_API_KEY) {
-    //   throw new Error("Google Maps API key is not configured.");
-    // }
+    const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY;
+    if (!GOOGLE_MAPS_API_KEY) {
+      // throw new Error("Google Maps API key is not configured.");
+       return {
+          services: [
+            {
+              name: 'ಶ್ರೀ ಲಕ್ಷ್ಮಿ ಫರ್ಟಿಲೈಸರ್',
+              category: 'ರಸಗೊಬ್ಬರ ಅಂಗಡಿ',
+              address: 'ಎನ್‌ಹೆಚ್ 275, ಹುಣಸೂರು ರಸ್ತೆ, ಮೈಸೂರು',
+              phoneNumber: '08012345678',
+              distance: '2.1 ಕಿ.ಮೀ',
+              directionsUrl: 'https://maps.google.com/maps?q=Sri+Lakshmi+Fertilizers+Mysore',
+            },
+          ],
+        };
+    }
 
     return {
       services: [
